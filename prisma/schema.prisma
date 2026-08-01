@@ -1,12 +1,12 @@
 // KittingMaster — dual-ledger kitting with Method DNA + Kit Seal
-// SQLite for zero-config local/demo; use postgresql in production.
+// PostgreSQL for Vercel/production (and local via DATABASE_URL).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

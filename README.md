@@ -15,21 +15,28 @@ Built around three proprietary pillars:
 - Session auth (JWT cookie via `jose`)
 - Vitest for seal + scan grammar unit tests
 
-## Quick start
+## Live demo
+
+**Production:** [https://kittingmaster.vercel.app](https://kittingmaster.vercel.app)
+
+**Demo login**
+
+- Email: `demo@kittingmaster.app`
+- Password: `demo1234`
+
+## Quick start (local)
+
+Requires PostgreSQL (`DATABASE_URL` in `.env` — see `.env.example`).
 
 ```bash
 npm install
+cp .env.example .env   # set DATABASE_URL + SESSION_SECRET
 npx prisma migrate dev
 npm run db:seed
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
-
-**Demo login**
-
-- Email: `demo@kittingmaster.app`
-- Password: `demo1234`
 
 ## Core workflows
 
