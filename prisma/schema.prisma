@@ -1,0 +1,469 @@
+// KittingMaster — dual-ledger kitting with Method DNA + Kit Seal
+// SQLite for zero-config local/demo; use postgresql in production.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  PLANNER
+  OPERATOR
+  SUPERVISOR
+  VIEWER
+}
+
+enum ZoneType {
+  STORAGE
+  STAGING
+  SHIP
+  ASSEMBLY
+}
+
+enum LocationType {
+  BIN
+  STAGING_CELL
+  CART
+  TOTE
+}
+
+enum TrackingMode {
+  NONE
+  LOT
+  SERIAL
+  LOT_AND_SERIAL
+}
+
+enum DemandType {
+  ASSEMBLY_JOB
+  FULFILLMENT_ORDER
+}
+
+enum DemandStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETE
+  CANCELLED
+}
+
+enum KitStatus {
+  PENDING
+  ALLOCATED
+  PICKING
+  STAGED
+  VALIDATING
+  SEALED
+  RELEASED
+  CANCELLED
+  EXCEPTION
+}
+
+enum KitLineStatus {
+  OPEN
+  PARTIAL
+  COMPLETE
+  EXCEPTION
+}
+
+enum SerialStatus {
+  AVAILABLE
+  RESERVED
+  STAGED
+  CONSUMED
+}
+
+enum InventoryTxnType {
+  RECEIPT
+  ADJUST
+  RESERVE
+  UNRESERVE
+  PICK
+  STAGE
+  SEAL
+  RELEASE
+  UNSEAL
+  RETURN
+  TRANSFER
+}
+
+enum DocumentType {
+  PICK_LIST
+  KIT_SHEET
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships    Membership[]
+  sites          Site[]
+  parts          Part[]
+  kitDefinitions KitDefinition[]
+  demands        Demand[]
+  kits           Kit[]
+  lots           Lot[]
+  serials        Serial[]
+  balances       InventoryBalance[]
+  transactions   InventoryTransaction[]
+  methodDnas     MethodDna[]
+  auditEvents    AuditEvent[]
+  documents      Document[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships  Membership[]
+  sealedKits   Kit[]         @relation("SealedBy")
+  scanSessions ScanSession[]
+  auditEvents  AuditEvent[]
+}
+
+model Membership {
+  id             String @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role   @default(VIEWER)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+model Site {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  timezone       String   @default("America/Chicago")
+  createdAt      DateTime @default(now())
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  zones        Zone[]
+  demands      Demand[]
+  kits         Kit[]
+  balances     InventoryBalance[]
+  transactions InventoryTransaction[]
+
+  @@unique([organizationId, code])
+}
+
+model Zone {
+  id     String   @id @default(cuid())
+  siteId String
+  code   String
+  name   String
+  type   ZoneType
+
+  site      Site       @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  locations Location[]
+
+  @@unique([siteId, code])
+}
+
+model Location {
+  id      String       @id @default(cuid())
+  zoneId  String
+  code    String
+  barcode String       @unique
+  type    LocationType
+  aisle   String?
+  bay     String?
+  level   String?
+
+  zone        Zone                   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  balances    InventoryBalance[]
+  kitsStaging Kit[]                  @relation("StagingLocation")
+  txnsFrom    InventoryTransaction[] @relation("TxnFrom")
+  txnsTo      InventoryTransaction[] @relation("TxnTo")
+
+  @@unique([zoneId, code])
+}
+
+model Part {
+  id             String       @id @default(cuid())
+  organizationId String
+  sku            String
+  name           String
+  uom            String       @default("EA")
+  tracking       TrackingMode @default(NONE)
+  barcode        String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bomLines     KitDefinitionLine[]
+  kitLines     KitLine[]
+  lots         Lot[]
+  serials      Serial[]
+  balances     InventoryBalance[]
+  transactions InventoryTransaction[]
+
+  @@unique([organizationId, sku])
+}
+
+model KitDefinition {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  revision       String   @default("A")
+  createdAt      DateTime @default(now())
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lines        KitDefinitionLine[]
+  kits         Kit[]
+
+  @@unique([organizationId, code, revision])
+}
+
+model KitDefinitionLine {
+  id              String  @id @default(cuid())
+  kitDefinitionId String
+  partId          String
+  qty             Float
+  isOptional      Boolean @default(false)
+  sortOrder       Int     @default(0)
+
+  kitDefinition KitDefinition @relation(fields: [kitDefinitionId], references: [id], onDelete: Cascade)
+  part          Part          @relation(fields: [partId], references: [id])
+
+  @@unique([kitDefinitionId, partId])
+}
+
+model Demand {
+  id             String       @id @default(cuid())
+  organizationId String
+  siteId         String
+  type           DemandType
+  externalRef    String
+  dueAt          DateTime?
+  priority       Int          @default(50)
+  status         DemandStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site         Site         @relation(fields: [siteId], references: [id])
+  kits         Kit[]
+}
+
+model MethodDna {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  versions     MethodDnaVersion[]
+}
+
+model MethodDnaVersion {
+  id             String    @id @default(cuid())
+  methodDnaId    String
+  version        String
+  publishedAt    DateTime?
+  isPublished    Boolean   @default(false)
+  configJson     String
+  strategiesJson String
+  contentHash    String
+  createdAt      DateTime  @default(now())
+
+  methodDna MethodDna @relation(fields: [methodDnaId], references: [id], onDelete: Cascade)
+  kits      Kit[]
+
+  @@unique([methodDnaId, version])
+}
+
+model Kit {
+  id                String    @id @default(cuid())
+  organizationId    String
+  siteId            String
+  kitDefinitionId   String
+  demandId          String?
+  dnaVersionId      String
+  status            KitStatus @default(PENDING)
+  stagingLocationId String?
+  kitInstanceCode   String
+  sealFingerprint   String?
+  sealedAt          DateTime?
+  sealedById        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site            Site                   @relation(fields: [siteId], references: [id])
+  kitDefinition   KitDefinition          @relation(fields: [kitDefinitionId], references: [id])
+  demand          Demand?                @relation(fields: [demandId], references: [id])
+  dnaVersion      MethodDnaVersion       @relation(fields: [dnaVersionId], references: [id])
+  stagingLocation Location?              @relation("StagingLocation", fields: [stagingLocationId], references: [id])
+  sealedBy        User?                  @relation("SealedBy", fields: [sealedById], references: [id])
+  lines           KitLine[]
+  scanSessions    ScanSession[]
+  transactions    InventoryTransaction[]
+  documents       Document[]
+
+  @@unique([organizationId, kitInstanceCode])
+}
+
+model KitLine {
+  id          String        @id @default(cuid())
+  kitId       String
+  partId      String
+  requiredQty Float
+  stagedQty   Float         @default(0)
+  status      KitLineStatus @default(OPEN)
+
+  kit           Kit                    @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  part          Part                   @relation(fields: [partId], references: [id])
+  transactions  InventoryTransaction[]
+  stagedSerials Serial[]               @relation("StagedOnLine")
+}
+
+model Lot {
+  id             String    @id @default(cuid())
+  organizationId String
+  partId         String
+  lotNumber      String
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  part         Part                   @relation(fields: [partId], references: [id])
+  serials      Serial[]
+  transactions InventoryTransaction[]
+
+  @@unique([organizationId, partId, lotNumber])
+}
+
+model Serial {
+  id             String       @id @default(cuid())
+  organizationId String
+  partId         String
+  serialNumber   String
+  lotId          String?
+  status         SerialStatus @default(AVAILABLE)
+  kitLineId      String?
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  part         Part                   @relation(fields: [partId], references: [id])
+  lot          Lot?                   @relation(fields: [lotId], references: [id])
+  kitLine      KitLine?               @relation("StagedOnLine", fields: [kitLineId], references: [id])
+  transactions InventoryTransaction[]
+
+  @@unique([organizationId, partId, serialNumber])
+}
+
+// lotId/serialId use empty string when not applicable (SQLite-friendly unique key)
+model InventoryBalance {
+  id             String @id @default(cuid())
+  organizationId String
+  siteId         String
+  locationId     String
+  partId         String
+  lotId          String @default("")
+  serialId       String @default("")
+  onHand         Float  @default(0)
+  reserved       Float  @default(0)
+  staged         Float  @default(0)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site         Site         @relation(fields: [siteId], references: [id])
+  location     Location     @relation(fields: [locationId], references: [id])
+  part         Part         @relation(fields: [partId], references: [id])
+
+  @@unique([locationId, partId, lotId, serialId])
+}
+
+model InventoryTransaction {
+  id             String           @id @default(cuid())
+  organizationId String
+  siteId         String
+  type           InventoryTxnType
+  partId         String
+  qty            Float
+  fromLocationId String?
+  toLocationId   String?
+  lotId          String?
+  serialId       String?
+  kitId          String?
+  kitLineId      String?
+  actorId        String?
+  metaJson       String?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site         Site         @relation(fields: [siteId], references: [id])
+  part         Part         @relation(fields: [partId], references: [id])
+  fromLocation Location?    @relation("TxnFrom", fields: [fromLocationId], references: [id])
+  toLocation   Location?    @relation("TxnTo", fields: [toLocationId], references: [id])
+  lot          Lot?         @relation(fields: [lotId], references: [id])
+  serial       Serial?      @relation(fields: [serialId], references: [id])
+  kit          Kit?         @relation(fields: [kitId], references: [id])
+  kitLine      KitLine?     @relation(fields: [kitLineId], references: [id])
+}
+
+model ScanSession {
+  id             String   @id @default(cuid())
+  kitId          String
+  operatorId     String
+  state          String   @default("EXPECT_LOCATION")
+  pendingPartId  String?
+  pendingLotId   String?
+  createdAt      DateTime @default(now())
+  lastEventAt    DateTime @default(now())
+
+  kit      Kit  @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  operator User @relation(fields: [operatorId], references: [id])
+}
+
+model Document {
+  id             String       @id @default(cuid())
+  organizationId String
+  kitId          String
+  type           DocumentType
+  content        String
+  createdAt      DateTime     @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kit          Kit          @relation(fields: [kitId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String
+  payloadJson    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation(fields: [actorId], references: [id])
+}
+
+model IdempotencyKey {
+  id             String   @id @default(cuid())
+  organizationId String
+  clientEventId  String
+  responseJson   String
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, clientEventId])
+}
