@@ -1,10 +1,7 @@
 export function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`badge status-${status} mono`}>
-      <span
-        className="h-1.5 w-1.5 rounded-full bg-current opacity-80"
-        aria-hidden
-      />
+    <span className={`status-pill status-${status}`}>
+      <span className="dot" style={{ width: 6, height: 6, borderRadius: 99, background: "currentColor", boxShadow: "0 0 8px currentColor" }} />
       {status}
     </span>
   );

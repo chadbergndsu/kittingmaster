@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-const nav = [
-  { href: "/dashboard", label: "Board" },
-  { href: "/kits", label: "Kits" },
-  { href: "/scan", label: "Scan" },
-  { href: "/inventory", label: "Inventory" },
-  { href: "/catalog", label: "Catalog" },
-  { href: "/dna", label: "Method DNA" },
+const opsNav = [
+  { href: "/dashboard", label: "Command board", icon: "◉" },
+  { href: "/kits", label: "Kits", icon: "▣" },
+  { href: "/scan", label: "Scan console", icon: "〉" },
+];
+
+const systemNav = [
+  { href: "/inventory", label: "Dual ledger", icon: "≡" },
+  { href: "/catalog", label: "Catalog", icon: "▤" },
+  { href: "/dna", label: "Method DNA", icon: "◈" },
 ];
 
 export function AppShell({
@@ -36,61 +39,128 @@ export function AppShell({
     return <>{children}</>;
   }
 
+  const initials = (user?.name || "KM")
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-[var(--border)] bg-black/20 backdrop-blur sticky top-0 z-20">
-        <div className="mx-auto max-w-7xl px-4 py-3 flex flex-wrap items-center gap-4 justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-sky-400 to-violet-500 grid place-items-center font-black text-slate-950">
-              KM
-            </div>
-            <div>
-              <div className="font-semibold tracking-tight">KittingMaster</div>
-              <div className="text-xs text-[var(--muted)]">
-                Dual-Ledger · Kit Seal · Customer Method DNA
-              </div>
+    <div className="app-frame">
+      <aside className="sidebar">
+        <div className="flex items-center gap-3 px-2 pt-1">
+          <div className="brand-mark">KM</div>
+          <div className="min-w-0">
+            <div className="font-semibold tracking-tight text-[0.95rem]">KittingMaster</div>
+            <div className="text-[0.7rem] text-[var(--muted)] truncate">
+              Dual-ledger ops platform
             </div>
           </div>
-          <nav className="flex flex-wrap gap-1">
-            {nav.map((item) => {
-              const active = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`px-3 py-1.5 rounded-lg text-sm ${
-                    active
-                      ? "bg-sky-500/20 text-sky-200 border border-sky-500/30"
-                      : "text-[var(--muted)] hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="flex items-center gap-3 text-sm">
+        </div>
+
+        <div className="px-1">
+          <div className="rounded-xl border border-[var(--border)] bg-white/[0.02] px-3 py-2.5">
+            <div className="text-[0.65rem] uppercase tracking-[0.1em] text-[var(--muted)] font-bold">
+              Tenant
+            </div>
+            <div className="text-sm font-medium truncate mt-0.5">
+              {user?.organizationName || "—"}
+            </div>
+            <div className="mt-2 flex items-center gap-1.5 text-[0.7rem] text-emerald-300/90">
+              <span className="live-dot" />
+              Systems online
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex flex-col gap-4 flex-1">
+          <div>
+            <div className="nav-section-label">Operations</div>
+            <div className="flex flex-col gap-0.5">
+              {opsNav.map((item) => {
+                const active = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`nav-link ${active ? "active" : ""}`}
+                  >
+                    <span className="nav-icon">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <div className="nav-section-label">System</div>
+            <div className="flex flex-col gap-0.5">
+              {systemNav.map((item) => {
+                const active = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`nav-link ${active ? "active" : ""}`}
+                  >
+                    <span className="nav-icon">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
+
+        <div className="mt-auto px-1 space-y-2">
+          <div className="rounded-xl border border-[var(--border)] p-3 bg-gradient-to-br from-sky-500/10 to-violet-500/10">
+            <div className="text-[0.7rem] font-bold uppercase tracking-wider text-sky-200/90">
+              Platform IP
+            </div>
+            <div className="text-[0.75rem] text-[var(--muted)] mt-1 leading-relaxed">
+              Kit Seal · Method DNA · Scan grammar
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="main-canvas">
+        <header className="topbar">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="hidden sm:flex items-center gap-2 text-xs text-[var(--muted)]">
+              <span className="badge">
+                <span className="live-dot" />
+                LIVE
+              </span>
+              <span className="truncate">Floor control · multi-site ready</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             {user ? (
               <>
-                <div className="text-right">
-                  <div className="font-medium">{user.name}</div>
-                  <div className="text-xs text-[var(--muted)]">
-                    {user.organizationName} · {user.role}
+                <div className="user-chip">
+                  <div className="avatar">{initials}</div>
+                  <div className="pr-2 hidden sm:block">
+                    <div className="text-xs font-semibold leading-tight">{user.name}</div>
+                    <div className="text-[0.65rem] text-[var(--muted)] mono leading-tight">
+                      {user.role}
+                    </div>
                   </div>
                 </div>
-                <button className="btn" onClick={logout} type="button">
-                  Log out
+                <button className="btn btn-ghost" onClick={logout} type="button">
+                  Sign out
                 </button>
               </>
             ) : (
               <Link className="btn btn-primary" href="/login">
-                Log in
+                Sign in
               </Link>
             )}
           </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        </header>
+        <main className="page">{children}</main>
+      </div>
     </div>
   );
 }

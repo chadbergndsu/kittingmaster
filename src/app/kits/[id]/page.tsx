@@ -34,69 +34,87 @@ export default async function KitDetailPage({
   });
   if (!kit) notFound();
 
+  const staged = kit.lines.reduce((a, l) => a + l.stagedQty, 0);
+  const required = kit.lines.reduce((a, l) => a + l.requiredQty, 0) || 1;
+  const pct = Math.min(100, Math.round((staged / required) * 100));
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href="/kits" className="text-sm text-[var(--muted)] hover:text-white">
-            ← Kits
+            ← Back to kits
           </Link>
-          <h1 className="text-2xl font-bold mono mt-1">{kit.kitInstanceCode}</h1>
-          <p className="text-sm text-[var(--muted)]">
-            {kit.kitDefinition.name} · {kit.demand?.type} / {kit.demand?.externalRef}
+          <div className="page-kicker mt-3">Kit instance</div>
+          <h1 className="page-title mono">{kit.kitInstanceCode}</h1>
+          <p className="page-subtitle">
+            {kit.kitDefinition.name} ·{" "}
+            {kit.demand?.type === "ASSEMBLY_JOB" ? "Assembly" : "Fulfillment"} /{" "}
+            <span className="mono">{kit.demand?.externalRef}</span>
           </p>
         </div>
         <StatusBadge status={kit.status} />
       </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className="card p-4 space-y-2">
-          <div className="text-xs uppercase tracking-wider text-[var(--muted)]">
-            Staging & DNA
+      <div className="grid md:grid-cols-4 gap-3">
+        <div className="stat-card">
+          <div className="stat-label">Completeness</div>
+          <div className="stat-value text-sky-300">{pct}%</div>
+          <div className="progress-track mt-3">
+            <div className="progress-fill" style={{ width: `${pct}%` }} />
           </div>
-          <div className="text-sm">
-            Cell:{" "}
-            <span className="mono text-sky-200">
-              {kit.stagingLocation?.code ?? "unassigned"}
-            </span>
-          </div>
-          <div className="text-sm">
-            Method DNA:{" "}
-            <span className="mono">v{kit.dnaVersion.version}</span>
-          </div>
-          <div className="text-xs text-[var(--muted)] mono break-all">
-            hash {kit.dnaVersion.contentHash.slice(0, 16)}…
+          <div className="stat-meta">
+            {staged}/{required} units staged
           </div>
         </div>
-        <div className="card p-4 space-y-2 md:col-span-2">
-          <div className="text-xs uppercase tracking-wider text-[var(--muted)]">
-            Kit Seal
+        <div className="stat-card md:col-span-1">
+          <div className="stat-label">Staging cell</div>
+          <div className="stat-value !text-lg mt-2 mono text-emerald-300">
+            {kit.stagingLocation?.code ?? "—"}
           </div>
+          <div className="stat-meta mono">{kit.stagingLocation?.barcode ?? "unassigned"}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Method DNA</div>
+          <div className="stat-value !text-lg mt-2 text-violet-300">
+            v{kit.dnaVersion.version}
+          </div>
+          <div className="stat-meta mono">{kit.dnaVersion.contentHash.slice(0, 12)}…</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Kit Seal</div>
           {kit.sealFingerprint ? (
             <>
-              <div className="text-xl font-bold text-violet-300 mono">
+              <div className="seal-code text-xl mt-2">
                 {kit.sealFingerprint.slice(0, 12).toUpperCase()}
               </div>
-              <div className="text-xs mono break-all text-[var(--muted)]">
-                {kit.sealFingerprint}
-              </div>
-              <div className="text-xs text-[var(--muted)]">
-                Sealed {kit.sealedAt?.toISOString()}
-              </div>
+              <div className="stat-meta">Sealed {kit.sealedAt?.toISOString().slice(0, 19)}Z</div>
             </>
           ) : (
-            <div className="text-sm text-[var(--muted)]">
-              Not sealed. Stage all lines, then run validate & seal.
-            </div>
+            <>
+              <div className="stat-value !text-lg mt-2 text-[var(--muted)]">Not sealed</div>
+              <div className="stat-meta">Stage all lines, then seal</div>
+            </>
           )}
         </div>
       </div>
 
+      {kit.sealFingerprint && (
+        <div className="card">
+          <div className="card-body">
+            <div className="field-label">Full seal fingerprint</div>
+            <div className="mono text-xs text-violet-200/80 break-all leading-relaxed">
+              {kit.sealFingerprint}
+            </div>
+          </div>
+        </div>
+      )}
+
       <KitActions kitId={kit.id} status={kit.status} />
 
       <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-[var(--border)] font-semibold">
-          BOM lines
+        <div className="card-header">
+          <div className="font-semibold">BOM lines</div>
         </div>
         <table className="table">
           <thead>
@@ -112,9 +130,11 @@ export default async function KitDetailPage({
           <tbody>
             {kit.lines.map((l) => (
               <tr key={l.id}>
-                <td className="mono">{l.part.sku}</td>
+                <td className="mono font-semibold text-sky-200/90">{l.part.sku}</td>
                 <td>{l.part.name}</td>
-                <td className="mono text-xs">{l.part.tracking}</td>
+                <td>
+                  <span className="badge mono">{l.part.tracking}</span>
+                </td>
                 <td className="mono">{l.requiredQty}</td>
                 <td className="mono">{l.stagedQty}</td>
                 <td>
@@ -127,40 +147,50 @@ export default async function KitDetailPage({
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="card p-4">
-          <div className="font-semibold mb-3">Documents</div>
-          {kit.documents.length === 0 && (
-            <div className="text-sm text-[var(--muted)]">No documents yet.</div>
-          )}
-          <ul className="space-y-3">
+        <div className="card">
+          <div className="card-header">
+            <div className="font-semibold">Documents</div>
+          </div>
+          <div className="card-body space-y-3">
+            {kit.documents.length === 0 && (
+              <div className="text-sm text-[var(--muted)]">No documents yet.</div>
+            )}
             {kit.documents.map((d) => (
-              <li key={d.id} className="border border-[var(--border)] rounded-lg p-3">
-                <div className="text-xs text-[var(--muted)] mb-1">
-                  {d.type} · {d.createdAt.toISOString()}
+              <div key={d.id} className="rounded-xl border border-[var(--border)] bg-black/20 p-3">
+                <div className="flex justify-between gap-2 text-xs text-[var(--muted)] mb-2">
+                  <span className="badge">{d.type}</span>
+                  <span className="mono">{d.createdAt.toISOString()}</span>
                 </div>
-                <pre className="text-xs mono whitespace-pre-wrap text-sky-100/90">
+                <pre className="text-xs mono whitespace-pre-wrap text-sky-100/85 leading-relaxed">
                   {d.content}
                 </pre>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
-        <div className="card p-4">
-          <div className="font-semibold mb-3">Ledger activity</div>
-          <ul className="space-y-2 max-h-[420px] overflow-auto">
+        <div className="card">
+          <div className="card-header">
+            <div className="font-semibold">Ledger activity</div>
+          </div>
+          <div className="card-body max-h-[480px] overflow-auto space-y-2">
             {kit.transactions.map((t) => (
-              <li
+              <div
                 key={t.id}
-                className="text-xs border-b border-[var(--border)] pb-2 mono"
+                className="rounded-lg border border-[var(--border)] px-3 py-2 text-xs mono bg-white/[0.015]"
               >
-                <span className="text-amber-200">{t.type}</span>{" "}
-                {t.part.sku} qty {t.qty}
-                {t.lot ? ` lot ${t.lot.lotNumber}` : ""}
-                {t.serial ? ` sn ${t.serial.serialNumber}` : ""}
-                <div className="text-[var(--muted)]">{t.createdAt.toISOString()}</div>
-              </li>
+                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                  <span className="text-amber-200 font-bold">{t.type}</span>
+                  <span className="text-sky-200">{t.part.sku}</span>
+                  <span>qty {t.qty}</span>
+                  {t.lot && <span className="text-[var(--muted)]">lot {t.lot.lotNumber}</span>}
+                  {t.serial && (
+                    <span className="text-[var(--muted)]">sn {t.serial.serialNumber}</span>
+                  )}
+                </div>
+                <div className="text-[var(--muted)] mt-1">{t.createdAt.toISOString()}</div>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       </div>
     </div>

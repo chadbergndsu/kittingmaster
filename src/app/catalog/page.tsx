@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
+import { PageHeader } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -26,16 +27,18 @@ export default async function CatalogPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Catalog</h1>
-        <p className="text-sm text-[var(--muted)]">
-          Parts, kit definitions (BOMs), and scannable locations.
-        </p>
-      </div>
+    <div>
+      <PageHeader
+        kicker="System · Catalog"
+        title="Master data"
+        subtitle="Parts, kit definitions (BOMs), and scannable locations for staging cells and bins."
+      />
 
-      <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-[var(--border)] font-semibold">Parts</div>
+      <div className="card overflow-hidden mb-6">
+        <div className="card-header">
+          <div className="font-semibold">Parts</div>
+          <span className="badge mono">{parts.length}</span>
+        </div>
         <table className="table">
           <thead>
             <tr>
@@ -48,39 +51,47 @@ export default async function CatalogPage() {
           <tbody>
             {parts.map((p) => (
               <tr key={p.id}>
-                <td className="mono">{p.sku}</td>
+                <td className="mono font-semibold text-sky-200/90">{p.sku}</td>
                 <td>{p.name}</td>
-                <td className="mono text-xs">{p.tracking}</td>
-                <td className="mono text-xs">{p.barcode}</td>
+                <td>
+                  <span className="badge mono">{p.tracking}</span>
+                </td>
+                <td className="mono text-xs text-[var(--muted)]">{p.barcode}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
         {defs.map((d) => (
-          <div key={d.id} className="card p-4">
-            <div className="font-semibold">
-              {d.code}{" "}
-              <span className="text-[var(--muted)] font-normal">rev {d.revision}</span>
+          <div key={d.id} className="card">
+            <div className="card-header">
+              <div>
+                <div className="font-semibold mono">{d.code}</div>
+                <div className="text-xs text-[var(--muted)]">{d.name}</div>
+              </div>
+              <span className="badge">rev {d.revision}</span>
             </div>
-            <div className="text-sm text-[var(--muted)] mb-3">{d.name}</div>
-            <ul className="space-y-1 text-sm">
+            <div className="card-body space-y-2">
               {d.lines.map((l) => (
-                <li key={l.id} className="flex justify-between mono">
-                  <span>{l.part.sku}</span>
-                  <span>× {l.qty}</span>
-                </li>
+                <div
+                  key={l.id}
+                  className="flex justify-between items-center text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-white/[0.015]"
+                >
+                  <span className="mono text-sky-200/90">{l.part.sku}</span>
+                  <span className="mono text-[var(--muted)]">× {l.qty}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         ))}
       </div>
 
       <div className="card overflow-hidden">
-        <div className="px-4 py-3 border-b border-[var(--border)] font-semibold">
-          Locations
+        <div className="card-header">
+          <div className="font-semibold">Locations</div>
+          <span className="badge mono">{locations.length}</span>
         </div>
         <table className="table">
           <thead>
@@ -94,12 +105,14 @@ export default async function CatalogPage() {
           <tbody>
             {locations.map((l) => (
               <tr key={l.id}>
-                <td className="mono">{l.code}</td>
-                <td className="mono text-xs">{l.type}</td>
+                <td className="mono font-semibold">{l.code}</td>
+                <td>
+                  <span className="badge mono">{l.type}</span>
+                </td>
                 <td className="text-sm">
                   {l.zone.code} / {l.zone.site.code}
                 </td>
-                <td className="mono text-xs text-sky-200">{l.barcode}</td>
+                <td className="mono text-xs text-sky-200/90">{l.barcode}</td>
               </tr>
             ))}
           </tbody>

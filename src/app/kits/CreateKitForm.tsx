@@ -44,10 +44,10 @@ export function CreateKitForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="card p-4 grid md:grid-cols-5 gap-3 items-end">
+    <form onSubmit={onSubmit} className="grid md:grid-cols-5 gap-3 items-end">
       <div>
-        <label className="text-xs text-[var(--muted)]">Site</label>
-        <select className="input mt-1" value={siteId} onChange={(e) => setSiteId(e.target.value)}>
+        <label className="field-label">Site</label>
+        <select className="input" value={siteId} onChange={(e) => setSiteId(e.target.value)}>
           {sites.map((s) => (
             <option key={s.id} value={s.id}>
               {s.code} — {s.name}
@@ -56,9 +56,9 @@ export function CreateKitForm({
         </select>
       </div>
       <div>
-        <label className="text-xs text-[var(--muted)]">Kit definition</label>
+        <label className="field-label">Kit definition</label>
         <select
-          className="input mt-1"
+          className="input"
           value={kitDefinitionId}
           onChange={(e) => setKitDefinitionId(e.target.value)}
         >
@@ -70,9 +70,9 @@ export function CreateKitForm({
         </select>
       </div>
       <div>
-        <label className="text-xs text-[var(--muted)]">Demand type</label>
+        <label className="field-label">Demand type</label>
         <select
-          className="input mt-1"
+          className="input"
           value={demandType}
           onChange={(e) => setDemandType(e.target.value)}
         >
@@ -81,9 +81,9 @@ export function CreateKitForm({
         </select>
       </div>
       <div>
-        <label className="text-xs text-[var(--muted)]">External ref</label>
+        <label className="field-label">External ref</label>
         <input
-          className="input mt-1"
+          className="input mono"
           placeholder="WO-2001 / SO-9001"
           value={externalRef}
           onChange={(e) => setExternalRef(e.target.value)}
@@ -93,7 +93,7 @@ export function CreateKitForm({
         <button className="btn btn-primary w-full" disabled={loading} type="submit">
           {loading ? "Creating…" : "Create kit"}
         </button>
-        {error && <div className="text-xs text-rose-300 mt-1">{error}</div>}
+        {error && <div className="text-xs text-rose-300 mt-1.5">{error}</div>}
       </div>
     </form>
   );

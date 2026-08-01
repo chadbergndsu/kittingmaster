@@ -27,7 +27,7 @@ export function DnaExportButton() {
 
   return (
     <div className="flex items-center gap-2">
-      <button className="btn btn-primary" type="button" onClick={exportPack}>
+      <button className="btn btn-seal" type="button" onClick={exportPack}>
         Export DNA pack
       </button>
       {status && <span className="text-xs text-[var(--muted)]">{status}</span>}
