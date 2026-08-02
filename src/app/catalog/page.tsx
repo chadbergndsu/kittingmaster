@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
+import { CreateBomForm, CreatePartForm } from "./CatalogForms";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +32,27 @@ export default async function CatalogPage() {
       <PageHeader
         kicker="System · Catalog"
         title="Master data"
-        subtitle="Parts, kit definitions (BOMs), and scannable locations for staging cells and bins."
+        subtitle="Create parts and kit BOMs, then stage them through the dual-ledger engine."
       />
+
+      <div className="grid lg:grid-cols-2 gap-4 mb-6">
+        <div className="card">
+          <div className="card-header">
+            <div className="font-semibold">New part</div>
+          </div>
+          <div className="card-body">
+            <CreatePartForm />
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-header">
+            <div className="font-semibold">New kit definition</div>
+          </div>
+          <div className="card-body">
+            <CreateBomForm parts={parts.map((p) => ({ id: p.id, sku: p.sku, name: p.name }))} />
+          </div>
+        </div>
+      </div>
 
       <div className="card overflow-hidden mb-6">
         <div className="card-header">

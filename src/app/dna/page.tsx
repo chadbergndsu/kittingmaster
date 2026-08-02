@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
-import { DnaExportButton } from "./DnaExportButton";
+import { DnaActions } from "./DnaActions";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +20,8 @@ export default async function DnaPage() {
       <PageHeader
         kicker="System · Method DNA"
         title="Customer method intelligence"
-        subtitle="Per-tenant intellectual property profile. Published versions are immutable and bound to kits at creation — isolated, exportable, and never shared across customers."
-        actions={<DnaExportButton />}
+        subtitle="Per-tenant intellectual property profile. Publish new immutable versions; kits bind DNA at creation and never leak across tenants."
+        actions={<DnaActions />}
       />
 
       {dnas.map((dna) => (

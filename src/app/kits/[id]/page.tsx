@@ -157,9 +157,19 @@ export default async function KitDetailPage({
             )}
             {kit.documents.map((d) => (
               <div key={d.id} className="rounded-xl border border-[var(--border)] bg-black/20 p-3">
-                <div className="flex justify-between gap-2 text-xs text-[var(--muted)] mb-2">
+                <div className="flex flex-wrap justify-between gap-2 text-xs text-[var(--muted)] mb-2 items-center">
                   <span className="badge">{d.type}</span>
-                  <span className="mono">{d.createdAt.toISOString()}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="mono">{d.createdAt.toISOString()}</span>
+                    <a
+                      className="btn"
+                      href={`/api/kits/${kit.id}/documents/${d.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Print
+                    </a>
+                  </div>
                 </div>
                 <pre className="text-xs mono whitespace-pre-wrap text-sky-100/85 leading-relaxed">
                   {d.content}

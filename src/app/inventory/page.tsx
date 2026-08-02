@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
+import { ReceiptForm } from "./ReceiptForm";
 
 export const dynamic = "force-dynamic";
 
@@ -9,15 +10,33 @@ export default async function InventoryPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const balances = await prisma.inventoryBalance.findMany({
-    where: { organizationId: session.organizationId, onHand: { gt: 0 } },
-    include: {
-      part: true,
-      location: { include: { zone: true } },
-      site: true,
-    },
-    orderBy: [{ part: { sku: "asc" } }],
-  });
+  const [balances, parts, sites, locations] = await Promise.all([
+    prisma.inventoryBalance.findMany({
+      where: { organizationId: session.organizationId, onHand: { gt: 0 } },
+      include: {
+        part: true,
+        location: { include: { zone: true } },
+        site: true,
+      },
+      orderBy: [{ part: { sku: "asc" } }],
+    }),
+    prisma.part.findMany({
+      where: { organizationId: session.organizationId, isActive: true },
+      orderBy: { sku: "asc" },
+    }),
+    prisma.site.findMany({
+      where: { organizationId: session.organizationId },
+      orderBy: { code: "asc" },
+    }),
+    prisma.location.findMany({
+      where: {
+        zone: { site: { organizationId: session.organizationId } },
+        type: { in: ["BIN", "CART", "TOTE"] },
+      },
+      include: { zone: { include: { site: true } } },
+      orderBy: { code: "asc" },
+    }),
+  ]);
 
   const lotIds = balances.map((b) => b.lotId).filter(Boolean);
   const serialIds = balances.map((b) => b.serialId).filter(Boolean);
@@ -45,7 +64,7 @@ export default async function InventoryPage() {
       <PageHeader
         kicker="System · Dual ledger"
         title="Inventory control"
-        subtitle="RAW component balances by location with lot/serial identity. Sealed kits live on the KIT ledger."
+        subtitle="Post receipts into RAW, track reserved/staged holds, and monitor sealed KIT instances."
       />
 
       <div className="grid md:grid-cols-3 gap-3 mb-6">
@@ -66,6 +85,38 @@ export default async function InventoryPage() {
           <div className="stat-label">KIT ledger</div>
           <div className="stat-value text-violet-300">{sealed}</div>
           <div className="stat-meta">Sealed / released instances</div>
+        </div>
+      </div>
+
+      <div className="card mb-6">
+        <div className="card-header">
+          <div>
+            <div className="font-semibold">Receive into RAW</div>
+            <div className="text-xs text-[var(--muted)] mt-0.5">
+              Lot/serial captured per part tracking mode
+            </div>
+          </div>
+        </div>
+        <div className="card-body">
+          <ReceiptForm
+            parts={parts.map((p) => ({
+              id: p.id,
+              sku: p.sku,
+              name: p.name,
+              tracking: p.tracking,
+            }))}
+            sites={sites.map((s) => ({ id: s.id, code: s.code, name: s.name }))}
+            locations={locations.map((l) => ({
+              id: l.id,
+              code: l.code,
+              barcode: l.barcode,
+              type: l.type,
+              zone: {
+                code: l.zone.code,
+                site: { id: l.zone.site.id, code: l.zone.site.code },
+              },
+            }))}
+          />
         </div>
       </div>
 

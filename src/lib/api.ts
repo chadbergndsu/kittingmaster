@@ -8,10 +8,13 @@ export function jsonOk<T>(data: T, status = 200) {
 
 export function jsonError(err: unknown, fallback = "Internal error") {
   if (err instanceof DomainError) {
-    return NextResponse.json(
-      { error: err.message, code: err.code },
-      { status: err.code === "NOT_FOUND" ? 404 : 409 }
-    );
+    const status =
+      err.code === "NOT_FOUND"
+        ? 404
+        : err.code === "FORBIDDEN" || err.code === "UNAUTHORIZED"
+          ? 403
+          : 409;
+    return NextResponse.json({ error: err.message, code: err.code }, { status });
   }
   if (err instanceof AuthError) {
     return NextResponse.json(
