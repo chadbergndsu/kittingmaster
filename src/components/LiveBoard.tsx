@@ -50,6 +50,34 @@ export function LiveBoard({
   const [live, setLive] = useState(false);
   const [lastPulse, setLastPulse] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
+  const [metrics, setMetrics] = useState<{
+    sealedToday: number;
+    avgStageMinutes: number | null;
+    sealRatePct: number;
+    overdue: number;
+    agingOver4h: number;
+    throughputLast24h: number;
+    exceptions: number;
+  } | null>(null);
+  const [criticalShortages, setCriticalShortages] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/ops/metrics")
+      .then((r) => r.json())
+      .then((d) => d.metrics && setMetrics(d.metrics))
+      .catch(() => {});
+    fetch("/api/ops/shortages")
+      .then((r) => r.json())
+      .then((d) => setCriticalShortages(d.criticalCount || 0))
+      .catch(() => {});
+    const t = setInterval(() => {
+      fetch("/api/ops/metrics")
+        .then((r) => r.json())
+        .then((d) => d.metrics && setMetrics(d.metrics))
+        .catch(() => {});
+    }, 15000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const es = new EventSource("/api/events");
@@ -140,30 +168,67 @@ export function LiveBoard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3">
         <div className="stat-card">
           <div className="stat-glow" style={{ background: "rgba(56,189,248,0.5)" }} />
-          <div className="stat-label">Active pipeline</div>
+          <div className="stat-label">In flight</div>
           <div className="stat-value text-sky-300">{inFlight}</div>
-          <div className="stat-meta">Allocated → validating</div>
+          <div className="stat-meta">Active pipeline</div>
         </div>
         <div className="stat-card">
           <div className="stat-glow" style={{ background: "rgba(167,139,250,0.5)" }} />
-          <div className="stat-label">Sealed / released</div>
+          <div className="stat-label">Sealed kit ledger</div>
           <div className="stat-value text-violet-300">{sealed}</div>
-          <div className="stat-meta">KIT ledger instances</div>
+          <div className="stat-meta">Sealed + released</div>
         </div>
         <div className="stat-card">
           <div className="stat-glow" style={{ background: "rgba(52,211,153,0.4)" }} />
-          <div className="stat-label">Total kits</div>
-          <div className="stat-value text-emerald-300">{kits.length}</div>
-          <div className="stat-meta">Tracked on board</div>
+          <div className="stat-label">Sealed today</div>
+          <div className="stat-value text-emerald-300">{metrics?.sealedToday ?? "—"}</div>
+          <div className="stat-meta">UTC day throughput</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-glow" style={{ background: "rgba(125,211,252,0.35)" }} />
+          <div className="stat-label">24h seals</div>
+          <div className="stat-value text-sky-200">{metrics?.throughputLast24h ?? "—"}</div>
+          <div className="stat-meta">Rolling window</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-glow" style={{ background: "rgba(196,181,253,0.4)" }} />
+          <div className="stat-label">Seal rate</div>
+          <div className="stat-value text-violet-200">
+            {metrics ? `${metrics.sealRatePct}%` : "—"}
+          </div>
+          <div className="stat-meta">Sealed/released ÷ total</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-glow" style={{ background: "rgba(251,191,36,0.35)" }} />
+          <div className="stat-label">Avg stage min</div>
+          <div className="stat-value text-amber-300">
+            {metrics?.avgStageMinutes ?? "—"}
+          </div>
+          <div className="stat-meta">Create → seal</div>
         </div>
         <div className="stat-card">
           <div className="stat-glow" style={{ background: "rgba(251,113,133,0.4)" }} />
           <div className="stat-label">Exceptions</div>
-          <div className="stat-value text-rose-300">{counts.EXCEPTION || 0}</div>
-          <div className="stat-meta">Needs attention</div>
+          <div className="stat-value text-rose-300">
+            {metrics?.exceptions ?? counts.EXCEPTION ?? 0}
+          </div>
+          <div className="stat-meta">
+            <Link href="/exceptions" className="link-accent">
+              Open board
+            </Link>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-glow" style={{ background: "rgba(248,113,113,0.35)" }} />
+          <div className="stat-label">Shortages</div>
+          <div className="stat-value text-rose-200">{criticalShortages}</div>
+          <div className="stat-meta">
+            {metrics?.overdue ? `${metrics.overdue} overdue · ` : ""}
+            {metrics?.agingOver4h ? `${metrics.agingOver4h} aging` : "material risk"}
+          </div>
         </div>
       </div>
 

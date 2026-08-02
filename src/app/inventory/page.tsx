@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/PageHeader";
 import { ReceiptForm } from "./ReceiptForm";
+import { CycleCountForm } from "./CycleCountForm";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +112,31 @@ export default async function InventoryPage() {
               code: l.code,
               barcode: l.barcode,
               type: l.type,
+              zone: {
+                code: l.zone.code,
+                site: { id: l.zone.site.id, code: l.zone.site.code },
+              },
+            }))}
+          />
+        </div>
+      </div>
+
+      <div className="card mb-6">
+        <div className="card-header">
+          <div>
+            <div className="font-semibold">Cycle count (adjust)</div>
+            <div className="text-xs text-[var(--muted)] mt-0.5">
+              WMS best practice: count → set on-hand; blocked if count &lt; reserved+staged
+            </div>
+          </div>
+        </div>
+        <div className="card-body">
+          <CycleCountForm
+            parts={parts.map((p) => ({ id: p.id, sku: p.sku }))}
+            sites={sites.map((s) => ({ id: s.id, code: s.code }))}
+            locations={locations.map((l) => ({
+              id: l.id,
+              code: l.code,
               zone: {
                 code: l.zone.code,
                 site: { id: l.zone.site.id, code: l.zone.site.code },

@@ -6,13 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 const opsNav = [
   { href: "/dashboard", label: "Command board", icon: "◉" },
   { href: "/kits", label: "Kits", icon: "▣" },
+  { href: "/waves", label: "Waves", icon: "≋" },
   { href: "/scan", label: "Scan console", icon: "〉" },
+  { href: "/exceptions", label: "Exceptions", icon: "!" },
 ];
 
 const systemNav = [
   { href: "/inventory", label: "Dual ledger", icon: "≡" },
   { href: "/catalog", label: "Catalog", icon: "▤" },
   { href: "/dna", label: "Method DNA", icon: "◈" },
+  { href: "/settings", label: "Integrations", icon: "⚙" },
 ];
 
 export function AppShell({

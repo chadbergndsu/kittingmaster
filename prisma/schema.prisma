@@ -95,14 +95,24 @@ enum InventoryTxnType {
 enum DocumentType {
   PICK_LIST
   KIT_SHEET
+  WAVE_LIST
+}
+
+enum WaveStatus {
+  OPEN
+  RELEASED
+  IN_PROGRESS
+  COMPLETE
+  CANCELLED
 }
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  slug       String   @unique
+  webhookUrl String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   memberships    Membership[]
   sites          Site[]
@@ -117,6 +127,7 @@ model Organization {
   methodDnas     MethodDna[]
   auditEvents    AuditEvent[]
   documents      Document[]
+  waves          Wave[]
 }
 
 model User {
@@ -159,6 +170,7 @@ model Site {
   kits         Kit[]
   balances     InventoryBalance[]
   transactions InventoryTransaction[]
+  waves        Wave[]
 
   @@unique([organizationId, code])
 }
@@ -303,6 +315,8 @@ model Kit {
   sealFingerprint   String?
   sealedAt          DateTime?
   sealedById        String?
+  exceptionReason   String?
+  exceptionAt       DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -317,8 +331,40 @@ model Kit {
   scanSessions    ScanSession[]
   transactions    InventoryTransaction[]
   documents       Document[]
+  waveKits        WaveKit[]
 
   @@unique([organizationId, kitInstanceCode])
+}
+
+model Wave {
+  id             String     @id @default(cuid())
+  organizationId String
+  siteId         String
+  code           String
+  name           String?
+  status         WaveStatus @default(OPEN)
+  notes          String?
+  createdAt      DateTime   @default(now())
+  releasedAt     DateTime?
+  completedAt    DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site         Site         @relation(fields: [siteId], references: [id])
+  kits         WaveKit[]
+
+  @@unique([organizationId, code])
+}
+
+model WaveKit {
+  id        String @id @default(cuid())
+  waveId    String
+  kitId     String
+  sortOrder Int    @default(0)
+
+  wave Wave @relation(fields: [waveId], references: [id], onDelete: Cascade)
+  kit  Kit  @relation(fields: [kitId], references: [id], onDelete: Cascade)
+
+  @@unique([waveId, kitId])
 }
 
 model KitLine {

@@ -445,6 +445,29 @@ export async function validateAndSealKit(input: {
     });
 
     return sealed;
+  }).then(async (sealed) => {
+    // Market: ERP/MRP webhook on seal (non-blocking)
+    try {
+      const { dispatchWebhook } = await import("@/lib/ops/webhooks");
+      const org = await prisma.organization.findUnique({
+        where: { id: sealed.organizationId },
+      });
+      await dispatchWebhook(org?.webhookUrl, {
+        event: "kit.sealed",
+        organizationId: sealed.organizationId,
+        occurredAt: new Date().toISOString(),
+        data: {
+          kitId: sealed.id,
+          kitInstanceCode: sealed.kitInstanceCode,
+          sealFingerprint: sealed.sealFingerprint,
+          demandType: sealed.demand?.type,
+          externalRef: sealed.demand?.externalRef,
+        },
+      });
+    } catch {
+      /* never block seal on webhook */
+    }
+    return sealed;
   });
 }
 
