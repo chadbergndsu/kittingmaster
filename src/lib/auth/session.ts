@@ -6,9 +6,7 @@ import type { Role } from "@prisma/client";
 
 const COOKIE = "km_session";
 const secret = () =>
-  new TextEncoder().encode(
-    process.env.SESSION_SECRET || "kittingmaster-dev-secret-change-me"
-  );
+  new TextEncoder().encode(process.env.SESSION_SECRET || "kittingmaster-dev-secret-change-me");
 
 export type SessionPayload = {
   userId: string;

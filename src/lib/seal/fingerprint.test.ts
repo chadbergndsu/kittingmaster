@@ -54,9 +54,7 @@ describe("Kit Seal fingerprint", () => {
   });
 
   it("changes when DNA version changes", () => {
-    const lines = [
-      { partId: "p1", sku: "A", qty: 1, stagingCellId: "c1" },
-    ];
+    const lines = [{ partId: "p1", sku: "A", qty: 1, stagingCellId: "c1" }];
     const a = computeKitSealFingerprint({
       organizationId: "org1",
       kitId: "kit1",

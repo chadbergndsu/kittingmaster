@@ -16,16 +16,16 @@ Industry sources (WMS / warehouse kitting guides from Modula, Logimax, Buske, Fi
 
 ## Competitive gaps we target
 
-| Market need | Typical WMS | KittingMaster |
-|-------------|-------------|---------------|
-| Generic pick lists | Strong | Strong + scan grammar FSM |
-| Kit completeness seal | Weak / checklist only | **Kit Seal fingerprint** (BOM + lot/serial + cell + DNA version) |
-| Per-customer methods | Rare (one-size config) | **Method DNA** versioned IP packs |
-| Dual ledger honesty | Partial | **RAW vs KIT** typed transactions |
-| Shortages board | Often buried | First-class **exceptions + shortages** UI |
-| Wave batching | Enterprise SKU | **Wave pick** with aggregate + per-kit docs |
-| Outbound events | Connector marketplace | **Webhooks** on seal/exception + CSV export |
-| Cycle count safety | Standard | Adjust blocked when &lt; reserved+staged |
+| Market need           | Typical WMS            | KittingMaster                                                    |
+| --------------------- | ---------------------- | ---------------------------------------------------------------- |
+| Generic pick lists    | Strong                 | Strong + scan grammar FSM                                        |
+| Kit completeness seal | Weak / checklist only  | **Kit Seal fingerprint** (BOM + lot/serial + cell + DNA version) |
+| Per-customer methods  | Rare (one-size config) | **Method DNA** versioned IP packs                                |
+| Dual ledger honesty   | Partial                | **RAW vs KIT** typed transactions                                |
+| Shortages board       | Often buried           | First-class **exceptions + shortages** UI                        |
+| Wave batching         | Enterprise SKU         | **Wave pick** with aggregate + per-kit docs                      |
+| Outbound events       | Connector marketplace  | **Webhooks** on seal/exception + CSV export                      |
+| Cycle count safety    | Standard               | Adjust blocked when &lt; reserved+staged                         |
 
 ## Senior engineering standards applied
 

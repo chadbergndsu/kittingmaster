@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+build
+coverage
+package-lock.json
+prisma/migrations
+src/generated
+.env
+.env.*
+!.env.example
+*.md
+docs/superpowers

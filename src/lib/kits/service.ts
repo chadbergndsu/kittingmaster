@@ -1,11 +1,4 @@
-import {
-  DemandType,
-  DocumentType,
-  KitLineStatus,
-  KitStatus,
-  Prisma,
-  PrismaClient,
-} from "@prisma/client";
+import { DemandType, DocumentType, KitLineStatus, KitStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
   DomainError,
@@ -14,13 +7,7 @@ import {
   sealStagedStock,
   stageStock,
 } from "@/lib/inventory/ledger";
-import {
-  computeKitSealFingerprint,
-  shortSealCode,
-  type SealLine,
-} from "@/lib/seal/fingerprint";
-
-type Db = PrismaClient | Prisma.TransactionClient;
+import { computeKitSealFingerprint, shortSealCode, type SealLine } from "@/lib/seal/fingerprint";
 
 function kitCode(prefix: string) {
   const n = Math.floor(Math.random() * 1_000_000)
@@ -196,16 +183,10 @@ export async function stagePartOnKit(input: {
     }
 
     const part = line.part;
-    if (
-      (part.tracking === "LOT" || part.tracking === "LOT_AND_SERIAL") &&
-      !input.lotId
-    ) {
+    if ((part.tracking === "LOT" || part.tracking === "LOT_AND_SERIAL") && !input.lotId) {
       throw new DomainError("LOT_REQUIRED", "Lot required for this part");
     }
-    if (
-      (part.tracking === "SERIAL" || part.tracking === "LOT_AND_SERIAL") &&
-      !input.serialId
-    ) {
+    if ((part.tracking === "SERIAL" || part.tracking === "LOT_AND_SERIAL") && !input.serialId) {
       throw new DomainError("SERIAL_REQUIRED", "Serial required for this part");
     }
 
@@ -230,10 +211,7 @@ export async function stagePartOnKit(input: {
         data: { stagingLocationId: input.stagingLocationId },
       });
     } else if (kit.stagingLocationId !== input.stagingLocationId) {
-      throw new DomainError(
-        "STAGING_CELL_LOCKED",
-        "Kit already bound to a different staging cell"
-      );
+      throw new DomainError("STAGING_CELL_LOCKED", "Kit already bound to a different staging cell");
     }
 
     await stageStock(tx, {
@@ -260,10 +238,8 @@ export async function stagePartOnKit(input: {
     });
 
     const lines = await tx.kitLine.findMany({ where: { kitId: kit.id } });
-    const allComplete = lines.every(
-      (l) => l.id === line.id
-        ? lineStatus === KitLineStatus.COMPLETE
-        : l.status === KitLineStatus.COMPLETE
+    const allComplete = lines.every((l) =>
+      l.id === line.id ? lineStatus === KitLineStatus.COMPLETE : l.status === KitLineStatus.COMPLETE
     );
     const anyStaged = lines.some((l) => (l.id === line.id ? newStaged : l.stagedQty) > 0);
 
@@ -311,164 +287,166 @@ export async function validateAndSealKit(input: {
   kitId: string;
   actorId?: string;
 }) {
-  return prisma.$transaction(async (tx) => {
-    const kit = await tx.kit.findFirst({
-      where: { id: input.kitId, organizationId: input.organizationId },
-      include: {
-        lines: { include: { part: true, stagedSerials: true } },
-        demand: true,
-        dnaVersion: true,
-        stagingLocation: true,
-        transactions: {
-          where: { type: "STAGE" },
-          include: { lot: true, serial: true },
+  return prisma
+    .$transaction(async (tx) => {
+      const kit = await tx.kit.findFirst({
+        where: { id: input.kitId, organizationId: input.organizationId },
+        include: {
+          lines: { include: { part: true, stagedSerials: true } },
+          demand: true,
+          dnaVersion: true,
+          stagingLocation: true,
+          transactions: {
+            where: { type: "STAGE" },
+            include: { lot: true, serial: true },
+          },
         },
-      },
-    });
-    if (!kit) throw new DomainError("NOT_FOUND", "Kit not found");
-    if (kit.status === KitStatus.SEALED || kit.status === KitStatus.RELEASED) {
-      throw new DomainError("ALREADY_SEALED", "Kit already sealed");
-    }
-    if (!kit.stagingLocationId) {
-      throw new DomainError("NO_STAGING_CELL", "Kit has no staging cell");
-    }
-
-    await tx.kit.update({
-      where: { id: kit.id },
-      data: { status: KitStatus.VALIDATING },
-    });
-
-    for (const line of kit.lines) {
-      if (line.stagedQty < line.requiredQty) {
-        throw new DomainError(
-          "INCOMPLETE",
-          `Line ${line.part.sku}: staged ${line.stagedQty}/${line.requiredQty}`
-        );
+      });
+      if (!kit) throw new DomainError("NOT_FOUND", "Kit not found");
+      if (kit.status === KitStatus.SEALED || kit.status === KitStatus.RELEASED) {
+        throw new DomainError("ALREADY_SEALED", "Kit already sealed");
       }
-    }
+      if (!kit.stagingLocationId) {
+        throw new DomainError("NO_STAGING_CELL", "Kit has no staging cell");
+      }
 
-    const sealedAt = new Date();
-    const sealLines: SealLine[] = [];
+      await tx.kit.update({
+        where: { id: kit.id },
+        data: { status: KitStatus.VALIDATING },
+      });
 
-    // Build seal lines from STAGE transactions for identity detail
-    for (const line of kit.lines) {
-      const stages = kit.transactions.filter((t) => t.kitLineId === line.id);
-      if (stages.length === 0) {
-        sealLines.push({
-          partId: line.partId,
-          sku: line.part.sku,
-          qty: line.stagedQty,
-          stagingCellId: kit.stagingLocationId,
-        });
-      } else {
-        for (const t of stages) {
+      for (const line of kit.lines) {
+        if (line.stagedQty < line.requiredQty) {
+          throw new DomainError(
+            "INCOMPLETE",
+            `Line ${line.part.sku}: staged ${line.stagedQty}/${line.requiredQty}`
+          );
+        }
+      }
+
+      const sealedAt = new Date();
+      const sealLines: SealLine[] = [];
+
+      // Build seal lines from STAGE transactions for identity detail
+      for (const line of kit.lines) {
+        const stages = kit.transactions.filter((t) => t.kitLineId === line.id);
+        if (stages.length === 0) {
           sealLines.push({
             partId: line.partId,
             sku: line.part.sku,
-            qty: t.qty,
-            lotNumber: t.lot?.lotNumber,
-            serialNumber: t.serial?.serialNumber,
+            qty: line.stagedQty,
             stagingCellId: kit.stagingLocationId,
           });
+        } else {
+          for (const t of stages) {
+            sealLines.push({
+              partId: line.partId,
+              sku: line.part.sku,
+              qty: t.qty,
+              lotNumber: t.lot?.lotNumber,
+              serialNumber: t.serial?.serialNumber,
+              stagingCellId: kit.stagingLocationId,
+            });
+          }
         }
       }
-    }
 
-    const demandType = kit.demand?.type ?? "ASSEMBLY_JOB";
-    const fingerprint = computeKitSealFingerprint({
-      organizationId: kit.organizationId,
-      kitId: kit.id,
-      dnaVersionId: kit.dnaVersionId,
-      demandType,
-      sealedAtIso: sealedAt.toISOString(),
-      lines: sealLines,
-    });
-
-    await sealStagedStock(tx, {
-      organizationId: kit.organizationId,
-      siteId: kit.siteId,
-      stagingLocationId: kit.stagingLocationId,
-      kitId: kit.id,
-      actorId: input.actorId,
-      lines: kit.lines.map((l) => {
-        const stage = kit.transactions.find((t) => t.kitLineId === l.id);
-        return {
-          partId: l.partId,
-          qty: l.stagedQty,
-          lotId: stage?.lotId,
-          serialId: stage?.serialId,
-          kitLineId: l.id,
-        };
-      }),
-    });
-
-    const sealed = await tx.kit.update({
-      where: { id: kit.id },
-      data: {
-        status: KitStatus.SEALED,
-        sealFingerprint: fingerprint,
-        sealedAt,
-        sealedById: input.actorId,
-      },
-      include: {
-        lines: { include: { part: true } },
-        kitDefinition: true,
-        demand: true,
-        stagingLocation: true,
-        dnaVersion: true,
-        sealedBy: true,
-      },
-    });
-
-    const kitSheet = renderKitSheet(sealed, shortSealCode(fingerprint));
-    await tx.document.create({
-      data: {
+      const demandType = kit.demand?.type ?? "ASSEMBLY_JOB";
+      const fingerprint = computeKitSealFingerprint({
         organizationId: kit.organizationId,
         kitId: kit.id,
-        type: DocumentType.KIT_SHEET,
-        content: kitSheet,
-      },
-    });
-
-    await tx.auditEvent.create({
-      data: {
-        organizationId: kit.organizationId,
-        actorId: input.actorId,
-        action: "KIT_SEALED",
-        entityType: "Kit",
-        entityId: kit.id,
-        payloadJson: JSON.stringify({
-          sealFingerprint: fingerprint,
-          shortSeal: shortSealCode(fingerprint),
-        }),
-      },
-    });
-
-    return sealed;
-  }).then(async (sealed) => {
-    // Market: ERP/MRP webhook on seal (non-blocking)
-    try {
-      const { dispatchWebhook } = await import("@/lib/ops/webhooks");
-      const org = await prisma.organization.findUnique({
-        where: { id: sealed.organizationId },
+        dnaVersionId: kit.dnaVersionId,
+        demandType,
+        sealedAtIso: sealedAt.toISOString(),
+        lines: sealLines,
       });
-      await dispatchWebhook(org?.webhookUrl, {
-        event: "kit.sealed",
-        organizationId: sealed.organizationId,
-        occurredAt: new Date().toISOString(),
+
+      await sealStagedStock(tx, {
+        organizationId: kit.organizationId,
+        siteId: kit.siteId,
+        stagingLocationId: kit.stagingLocationId,
+        kitId: kit.id,
+        actorId: input.actorId,
+        lines: kit.lines.map((l) => {
+          const stage = kit.transactions.find((t) => t.kitLineId === l.id);
+          return {
+            partId: l.partId,
+            qty: l.stagedQty,
+            lotId: stage?.lotId,
+            serialId: stage?.serialId,
+            kitLineId: l.id,
+          };
+        }),
+      });
+
+      const sealed = await tx.kit.update({
+        where: { id: kit.id },
         data: {
-          kitId: sealed.id,
-          kitInstanceCode: sealed.kitInstanceCode,
-          sealFingerprint: sealed.sealFingerprint,
-          demandType: sealed.demand?.type,
-          externalRef: sealed.demand?.externalRef,
+          status: KitStatus.SEALED,
+          sealFingerprint: fingerprint,
+          sealedAt,
+          sealedById: input.actorId,
+        },
+        include: {
+          lines: { include: { part: true } },
+          kitDefinition: true,
+          demand: true,
+          stagingLocation: true,
+          dnaVersion: true,
+          sealedBy: true,
         },
       });
-    } catch {
-      /* never block seal on webhook */
-    }
-    return sealed;
-  });
+
+      const kitSheet = renderKitSheet(sealed, shortSealCode(fingerprint));
+      await tx.document.create({
+        data: {
+          organizationId: kit.organizationId,
+          kitId: kit.id,
+          type: DocumentType.KIT_SHEET,
+          content: kitSheet,
+        },
+      });
+
+      await tx.auditEvent.create({
+        data: {
+          organizationId: kit.organizationId,
+          actorId: input.actorId,
+          action: "KIT_SEALED",
+          entityType: "Kit",
+          entityId: kit.id,
+          payloadJson: JSON.stringify({
+            sealFingerprint: fingerprint,
+            shortSeal: shortSealCode(fingerprint),
+          }),
+        },
+      });
+
+      return sealed;
+    })
+    .then(async (sealed) => {
+      // Market: ERP/MRP webhook on seal (non-blocking)
+      try {
+        const { dispatchWebhook } = await import("@/lib/ops/webhooks");
+        const org = await prisma.organization.findUnique({
+          where: { id: sealed.organizationId },
+        });
+        await dispatchWebhook(org?.webhookUrl, {
+          event: "kit.sealed",
+          organizationId: sealed.organizationId,
+          occurredAt: new Date().toISOString(),
+          data: {
+            kitId: sealed.id,
+            kitInstanceCode: sealed.kitInstanceCode,
+            sealFingerprint: sealed.sealFingerprint,
+            demandType: sealed.demand?.type,
+            externalRef: sealed.demand?.externalRef,
+          },
+        });
+      } catch {
+        /* never block seal on webhook */
+      }
+      return sealed;
+    });
 }
 
 export async function releaseKit(input: {
@@ -506,8 +484,7 @@ export async function releaseKit(input: {
       actorId: input.actorId,
       metaJson: JSON.stringify({
         demandType: kit.demand?.type,
-        target:
-          kit.demand?.type === "FULFILLMENT_ORDER" ? "SHIP" : "ASSEMBLY",
+        target: kit.demand?.type === "FULFILLMENT_ORDER" ? "SHIP" : "ASSEMBLY",
       }),
     },
   });
@@ -575,10 +552,7 @@ export function renderKitSheet(
   shortSeal: string
 ): string {
   const lines = kit.lines
-    .map(
-      (l, i) =>
-        `${i + 1}. ${l.part.sku}  ${l.part.name}  qty ${l.stagedQty}/${l.requiredQty}`
-    )
+    .map((l, i) => `${i + 1}. ${l.part.sku}  ${l.part.name}  qty ${l.stagedQty}/${l.requiredQty}`)
     .join("\n");
   return [
     "=== KITTINGMASTER KIT SHEET ===",

@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
@@ -30,28 +28,41 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env / secrets — never commit real secrets
 .env
-.env.*
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.development.local
+.env.production.local
+.env.test
+.env.test.local
 !.env.example
 
 # local databases
 *.db
 *.db-journal
 prisma/dev.db
+prisma/*.db
 
-# tooling skill dumps from prisma init
+# tooling dumps
 .agents/
 .claude/
 .windsurf/
 skills-lock.json
 
-# vercel
+# vercel local link (project ids only; still keep out of commits)
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
+# generated
 /src/generated/prisma
-.env*
+
+# editor
+.idea/
+.vscode/*
+!.vscode/extensions.json

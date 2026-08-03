@@ -96,7 +96,7 @@ async function main() {
   });
 
   const bins = await Promise.all(
-    ["A-01-01", "A-01-02", "A-02-01", "B-01-01"].map((code, i) =>
+    ["A-01-01", "A-01-02", "A-02-01", "B-01-01"].map((code) =>
       prisma.location.create({
         data: {
           zoneId: storage.id,

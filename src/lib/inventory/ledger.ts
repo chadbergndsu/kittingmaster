@@ -1,9 +1,4 @@
-import {
-  InventoryTxnType,
-  Prisma,
-  PrismaClient,
-  SerialStatus,
-} from "@prisma/client";
+import { InventoryTxnType, Prisma, PrismaClient, SerialStatus } from "@prisma/client";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -263,10 +258,7 @@ export async function sealStagedStock(
       serialId: line.serialId,
     });
     if (bal.staged < line.qty || bal.onHand < line.qty) {
-      throw new DomainError(
-        "SEAL_STOCK_MISMATCH",
-        `Staged stock mismatch for part ${line.partId}`
-      );
+      throw new DomainError("SEAL_STOCK_MISMATCH", `Staged stock mismatch for part ${line.partId}`);
     }
     await db.inventoryBalance.update({
       where: { id: bal.id },
@@ -340,16 +332,13 @@ export async function findBestSource(
 
   // FEFO: balances with lot ids first if we can load lots
   const lotIds = candidates.map((c) => c.lotId).filter((id) => id);
-  const lots =
-    lotIds.length > 0
-      ? await db.lot.findMany({ where: { id: { in: lotIds } } })
-      : [];
+  const lots = lotIds.length > 0 ? await db.lot.findMany({ where: { id: { in: lotIds } } }) : [];
   const lotMap = new Map(lots.map((l) => [l.id, l]));
 
   candidates.sort((a, b) => {
     if (input.preferFefo !== false) {
-      const la = a.lotId ? lotMap.get(a.lotId)?.expiresAt?.getTime() ?? Infinity : Infinity;
-      const lb = b.lotId ? lotMap.get(b.lotId)?.expiresAt?.getTime() ?? Infinity : Infinity;
+      const la = a.lotId ? (lotMap.get(a.lotId)?.expiresAt?.getTime() ?? Infinity) : Infinity;
+      const lb = b.lotId ? (lotMap.get(b.lotId)?.expiresAt?.getTime() ?? Infinity) : Infinity;
       if (la !== lb) return la - lb;
     }
     return a.location.code.localeCompare(b.location.code);

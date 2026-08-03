@@ -37,13 +37,7 @@ export function computeOpsMetrics(kits: KitMetricInput[], now = new Date()): Ops
   const fourH = 4 * 3600 * 1000;
 
   const terminal = new Set(["SEALED", "RELEASED", "CANCELLED"]);
-  const inFlightStatuses = new Set([
-    "PENDING",
-    "ALLOCATED",
-    "PICKING",
-    "STAGED",
-    "VALIDATING",
-  ]);
+  const inFlightStatuses = new Set(["PENDING", "ALLOCATED", "PICKING", "STAGED", "VALIDATING"]);
 
   let sealedToday = 0;
   let releasedToday = 0;
@@ -57,8 +51,7 @@ export function computeOpsMetrics(kits: KitMetricInput[], now = new Date()): Ops
   const byDemandType: Record<string, number> = {};
 
   for (const k of kits) {
-    byDemandType[k.demandType || "UNKNOWN"] =
-      (byDemandType[k.demandType || "UNKNOWN"] || 0) + 1;
+    byDemandType[k.demandType || "UNKNOWN"] = (byDemandType[k.demandType || "UNKNOWN"] || 0) + 1;
 
     if (k.status === "EXCEPTION") exceptions++;
     if (k.status === "SEALED" || k.status === "RELEASED") sealedOrReleased++;
@@ -69,11 +62,7 @@ export function computeOpsMetrics(kits: KitMetricInput[], now = new Date()): Ops
     if (inFlightStatuses.has(k.status) && now.getTime() - k.createdAt.getTime() > fourH) {
       agingOver4h++;
     }
-    if (
-      k.dueAt &&
-      k.dueAt < now &&
-      !terminal.has(k.status)
-    ) {
+    if (k.dueAt && k.dueAt < now && !terminal.has(k.status)) {
       overdue++;
     }
     if (k.sealedAt) {

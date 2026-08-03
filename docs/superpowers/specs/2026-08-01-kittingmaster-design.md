@@ -3,7 +3,7 @@
 **Date:** 2026-08-01  
 **Status:** Approved for implementation planning  
 **Product:** KittingMaster  
-**Audience:** Manufacturing, assembly, and fulfillment businesses  
+**Audience:** Manufacturing, assembly, and fulfillment businesses
 
 ---
 
@@ -14,7 +14,7 @@ KittingMaster is a multi-tenant, multi-site production foundation that helps com
 Differentiation is not cosmetic. Every workflow surface is designed around **custom intellectual property (IP)**:
 
 1. **Platform IP** — proprietary dual-ledger inventory, Kit Seal validation, and scan-order state machines that competitors do not get by default in generic WMS/MES tools.
-2. **Customer Method DNA** — each tenant owns configurable, versioned, exportable method packs that define *how* they pick, stage, validate, seal, and document kits. DNA is isolated; no cross-tenant leakage.
+2. **Customer Method DNA** — each tenant owns configurable, versioned, exportable method packs that define _how_ they pick, stage, validate, seal, and document kits. DNA is isolated; no cross-tenant leakage.
 3. **Senior-engineering bar** — typed domain model, transactional inventory, full audit, multi-tenant RLS, real-time status, and testable pure strategy modules.
 
 ---
@@ -52,7 +52,7 @@ Differentiation is not cosmetic. Every workflow surface is designed around **cus
 2. **Isolation** — tenant data and DNA never leak; DNA versions are immutable once used on a sealed kit.
 3. **One kit engine** — assembly and fulfillment share lifecycle; demand type only changes origin and release target.
 4. **Ledger honesty** — stock never “disappears”; every move is a typed inventory transaction.
-5. **Scan grammar** — validation is not only *what* was scanned but *in what legal sequence*.
+5. **Scan grammar** — validation is not only _what_ was scanned but _in what legal sequence_.
 6. **Pure strategies** — Method DNA handlers are pure functions over domain events; easy to unit test and patent-document.
 7. **Foundation, not prototype** — Postgres, migrations, RLS, audit, seed data, CI-ready structure.
 
@@ -62,17 +62,17 @@ Differentiation is not cosmetic. Every workflow surface is designed around **cus
 
 ### 4.1 Stack
 
-| Layer | Choice |
-|-------|--------|
-| App | Next.js (App Router) + TypeScript |
-| API | Next.js Route Handlers + server actions for mutations where appropriate |
-| DB | PostgreSQL |
-| ORM | Prisma |
-| Auth | Session-based (e.g. Auth.js / NextAuth) with org membership |
-| Real-time | Server-Sent Events (SSE) per site/kit channel |
-| Validation | Zod on all boundaries |
-| PDF | Server-side generation (e.g. `@react-pdf/renderer` or similar) |
-| Deploy target | Standard Node host (Vercel or container); Postgres managed |
+| Layer         | Choice                                                                  |
+| ------------- | ----------------------------------------------------------------------- |
+| App           | Next.js (App Router) + TypeScript                                       |
+| API           | Next.js Route Handlers + server actions for mutations where appropriate |
+| DB            | PostgreSQL                                                              |
+| ORM           | Prisma                                                                  |
+| Auth          | Session-based (e.g. Auth.js / NextAuth) with org membership             |
+| Real-time     | Server-Sent Events (SSE) per site/kit channel                           |
+| Validation    | Zod on all boundaries                                                   |
+| PDF           | Server-side generation (e.g. `@react-pdf/renderer` or similar)          |
+| Deploy target | Standard Node host (Vercel or container); Postgres managed              |
 
 ### 4.2 High-level modules
 
@@ -108,9 +108,9 @@ packages/ (optional later)
 
 Two logical ledgers over the same transaction stream:
 
-| Ledger | What it holds |
-|--------|----------------|
-| **RAW** | Component stock at bins (qty, optional lot, optional serial) |
+| Ledger  | What it holds                                                  |
+| ------- | -------------------------------------------------------------- |
+| **RAW** | Component stock at bins (qty, optional lot, optional serial)   |
 | **KIT** | Sealed kit instances (and optionally staged-in-progress holds) |
 
 **Transaction types (immutable inventory events):**
@@ -150,7 +150,7 @@ sealFingerprint = H(
 - Algorithm: SHA-256 (hex), stored on `Kit.sealFingerprint`
 - Printed on kit sheet as barcode/QR of kit instance code + short seal suffix
 - Re-open / unseal invalidates seal and records reason (audit)
-- Patent narrative: *multi-factor completeness fingerprint binding BOM identity, identity-tracked material, physical staging cell, and tenant method version into a single seal artifact*
+- Patent narrative: _multi-factor completeness fingerprint binding BOM identity, identity-tracked material, physical staging cell, and tenant method version into a single seal artifact_
 
 ### 4.6 Customer Method DNA (per-customer IP)
 
@@ -158,16 +158,16 @@ sealFingerprint = H(
 
 **Strategy slots (v1):**
 
-| Slot | Purpose | Default strategy (platform IP) |
-|------|---------|--------------------------------|
-| `allocation` | How stock is chosen | FEFO lots, then nearest bin, serial FIFO |
-| `pickPath` | Pick list ordering | Zone snake / bin sort |
-| `staging` | Where staged material lives | Dedicated kit staging cell assignment |
-| `scanGrammar` | Legal scan sequences | Kit → Location → Part [→ Lot] [→ Serial] → confirm |
-| `validation` | Completeness rules | Exact BOM qty + required lot/serial + cell occupancy |
-| `seal` | When seal is allowed | All lines staged & validated, no open exceptions |
-| `document` | Pick list / kit sheet layout | Standard manufacturing + fulfillment templates |
-| `exception` | Shortages / wrong-part | Block seal; allow supervisor substitute if DNA permits |
+| Slot          | Purpose                      | Default strategy (platform IP)                         |
+| ------------- | ---------------------------- | ------------------------------------------------------ |
+| `allocation`  | How stock is chosen          | FEFO lots, then nearest bin, serial FIFO               |
+| `pickPath`    | Pick list ordering           | Zone snake / bin sort                                  |
+| `staging`     | Where staged material lives  | Dedicated kit staging cell assignment                  |
+| `scanGrammar` | Legal scan sequences         | Kit → Location → Part [→ Lot] [→ Serial] → confirm     |
+| `validation`  | Completeness rules           | Exact BOM qty + required lot/serial + cell occupancy   |
+| `seal`        | When seal is allowed         | All lines staged & validated, no open exceptions       |
+| `document`    | Pick list / kit sheet layout | Standard manufacturing + fulfillment templates         |
+| `exception`   | Shortages / wrong-part       | Block seal; allow supervisor substitute if DNA permits |
 
 **DNA lifecycle:**
 
@@ -285,10 +285,10 @@ Transitions enforce DNA `scanGrammar` + `validation` + `seal` strategies. Illega
 
 ### 5.3 Demand types
 
-| Type | Origin fields | Release meaning |
-|------|---------------|-----------------|
-| `ASSEMBLY_JOB` | work order / job ref, optional workstation | Kit released to assembly / line |
-| `FULFILLMENT_ORDER` | order ref, ship-to, carrier hints | Kit released to pack/ship |
+| Type                | Origin fields                              | Release meaning                 |
+| ------------------- | ------------------------------------------ | ------------------------------- |
+| `ASSEMBLY_JOB`      | work order / job ref, optional workstation | Kit released to assembly / line |
+| `FULFILLMENT_ORDER` | order ref, ship-to, carrier hints          | Kit released to pack/ship       |
 
 Both create the same `Kit` + `KitLine` structure from a `KitDefinition` (BOM).
 
@@ -352,17 +352,17 @@ Site dashboard SSE stream:
 
 REST-ish JSON under `/api/v1` with session auth + org context header or path.
 
-| Area | Examples |
-|------|----------|
-| Orgs/Sites | `POST /orgs`, `POST /sites`, memberships |
-| Catalog | CRUD parts, locations, kit definitions |
-| DNA | get current, draft update, publish, export, list versions |
-| Demands/Kits | create demand, list kits, get kit detail, cancel |
-| Inventory | balances, receipts, adjusts, transfers |
-| Scan | `POST /scan/events` (idempotent with clientEventId) |
-| Seal | `POST /kits/:id/validate`, `POST /kits/:id/seal` |
-| Documents | `POST /kits/:id/pick-list`, `GET /documents/:id` |
-| Realtime | `GET /sites/:id/events` (SSE) |
+| Area         | Examples                                                  |
+| ------------ | --------------------------------------------------------- |
+| Orgs/Sites   | `POST /orgs`, `POST /sites`, memberships                  |
+| Catalog      | CRUD parts, locations, kit definitions                    |
+| DNA          | get current, draft update, publish, export, list versions |
+| Demands/Kits | create demand, list kits, get kit detail, cancel          |
+| Inventory    | balances, receipts, adjusts, transfers                    |
+| Scan         | `POST /scan/events` (idempotent with clientEventId)       |
+| Seal         | `POST /kits/:id/validate`, `POST /kits/:id/seal`          |
+| Documents    | `POST /kits/:id/pick-list`, `GET /documents/:id`          |
+| Realtime     | `GET /sites/:id/events` (SSE)                             |
 
 **Scan event payload (canonical):**
 
@@ -385,16 +385,16 @@ Idempotency: unique `(organizationId, clientEventId)`.
 
 ## 8. UI Surfaces
 
-| Route | Users | Purpose |
-|-------|-------|---------|
-| `/` | all | Org/site switcher, status board |
-| `/kits` | planner, supervisor | Kit queue, filters, create demand |
-| `/kits/[id]` | all roles (scoped) | Detail, lines, timeline, seal, docs |
-| `/scan` | operator | Large-target scan console; works with wedge + camera |
-| `/inventory` | planner, admin | Balances, receipts, transfers |
-| `/catalog` | admin, planner | Parts, BOMs, locations |
-| `/dna` | admin | Method DNA editor, publish, export |
-| `/admin` | owner/admin | Users, sites, roles |
+| Route        | Users               | Purpose                                              |
+| ------------ | ------------------- | ---------------------------------------------------- |
+| `/`          | all                 | Org/site switcher, status board                      |
+| `/kits`      | planner, supervisor | Kit queue, filters, create demand                    |
+| `/kits/[id]` | all roles (scoped)  | Detail, lines, timeline, seal, docs                  |
+| `/scan`      | operator            | Large-target scan console; works with wedge + camera |
+| `/inventory` | planner, admin      | Balances, receipts, transfers                        |
+| `/catalog`   | admin, planner      | Parts, BOMs, locations                               |
+| `/dna`       | admin               | Method DNA editor, publish, export                   |
+| `/admin`     | owner/admin         | Users, sites, roles                                  |
 
 **Scan UX principles:**
 
@@ -407,14 +407,14 @@ Idempotency: unique `(organizationId, clientEventId)`.
 
 ## 9. Error Handling
 
-| Class | Behavior |
-|-------|----------|
+| Class                                        | Behavior                                      |
+| -------------------------------------------- | --------------------------------------------- |
 | Domain rule (wrong status, insufficient qty) | 409 + machine-readable `code` + human message |
-| Validation (Zod) | 400 + field errors |
-| Auth / tenant | 401 / 403; never leak existence across orgs |
-| Idempotent replay | 200 with original result |
-| Concurrency (double seal) | transactional row lock on kit; loser gets 409 |
-| DNA missing strategy | fail closed at kit create / seal |
+| Validation (Zod)                             | 400 + field errors                            |
+| Auth / tenant                                | 401 / 403; never leak existence across orgs   |
+| Idempotent replay                            | 200 with original result                      |
+| Concurrency (double seal)                    | transactional row lock on kit; loser gets 409 |
+| DNA missing strategy                         | fail closed at kit create / seal              |
 
 All mutations write `AuditEvent` where material, DNA, or seal state changes.
 
@@ -433,12 +433,12 @@ All mutations write `AuditEvent` where material, DNA, or seal state changes.
 
 ## 11. Testing Strategy
 
-| Layer | What |
-|-------|------|
-| Unit | Dual-ledger math, seal fingerprint stability, scan grammar transitions, each strategy |
-| Integration | Prisma + Postgres: allocate → stage → seal → release; multi-tenant isolation |
-| API | Authz matrix; idempotent scan; DNA version immutability after publish |
-| E2E (smoke) | Create BOM → demand → pick list → scan stage → seal → kit sheet |
+| Layer       | What                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------- |
+| Unit        | Dual-ledger math, seal fingerprint stability, scan grammar transitions, each strategy |
+| Integration | Prisma + Postgres: allocate → stage → seal → release; multi-tenant isolation          |
+| API         | Authz matrix; idempotent scan; DNA version immutability after publish                 |
+| E2E (smoke) | Create BOM → demand → pick list → scan stage → seal → kit sheet                       |
 
 **Golden tests for IP:** fixed inputs produce stable seal fingerprints and DNA content hashes (document for patent support and customer export integrity).
 
@@ -475,23 +475,28 @@ Implementation should keep strategy modules and seal/ledger code clearly modular
 ## 14. Implementation Phases
 
 ### Phase 0 — Skeleton
+
 - Next.js app, Prisma schema, auth, org/site membership, RLS stubs, CI script
 
 ### Phase 1 — Catalog & inventory
+
 - Parts, locations, lots, serials, balances, receipt/adjust/transfer
 - Dual-ledger transaction engine
 
 ### Phase 2 — Kits & DNA
+
 - Kit definitions, demands, kit lifecycle
 - Method DNA model, default strategies, publish/export
 - Allocation + reserve
 
 ### Phase 3 — Scan & seal
+
 - Scan sessions, grammar state machine, stage transactions
 - Validate + Kit Seal + kit sheet / pick list PDFs
 - SSE status board
 
 ### Phase 4 — Hardening
+
 - Role matrix, audit polish, multi-tenant tests, seed demo, operator UX pass
 
 Each phase is independently demoable; Phase 3 is the first “full loop” for shop-floor narrative.
@@ -514,15 +519,15 @@ Foundation is successful when:
 
 ## 16. Open Decisions (resolved for v1)
 
-| Topic | Decision |
-|-------|----------|
-| Deliverable | Full-stack production foundation |
-| Ops model | Unified assembly + fulfillment |
-| Tenancy | Multi-tenant + multi-site |
-| Stack | Next.js + Postgres + Prisma |
-| Tracking | Full lot + serial support |
-| Architecture | Dual-ledger + Kit Seal + Customer Method DNA |
-| Real-time | SSE |
+| Topic                | Decision                                      |
+| -------------------- | --------------------------------------------- |
+| Deliverable          | Full-stack production foundation              |
+| Ops model            | Unified assembly + fulfillment                |
+| Tenancy              | Multi-tenant + multi-site                     |
+| Stack                | Next.js + Postgres + Prisma                   |
+| Tracking             | Full lot + serial support                     |
+| Architecture         | Dual-ledger + Kit Seal + Customer Method DNA  |
+| Real-time            | SSE                                           |
 | Customer code upload | Not in v1 (registry strategies + config only) |
 
 ---

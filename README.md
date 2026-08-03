@@ -2,31 +2,38 @@
 
 Production foundation for **staging and kitting components** in manufacturing, assembly, and fulfillment.
 
-Built around three proprietary pillars:
+Follows **[Solid Systems Standards](https://github.com/chadbergndsu/solid-systems-standards)** — simplicity, portable stack, automated quality, no secrets in git, observability, documented non-obvious design.
 
-1. **Dual-ledger inventory** — RAW component stock vs sealed KIT instances, with typed transactions (`RECEIPT`, `RESERVE`, `PICK`, `STAGE`, `SEAL`, `RELEASE`).
-2. **Kit Seal** — multi-factor completeness fingerprint binding BOM lines, lot/serial identity, staging cell, and Method DNA version.
-3. **Customer Method DNA** — per-tenant, versioned strategy packs (allocation, pick path, staging, scan grammar, validation, seal, documents, exceptions). Exportable as customer IP packs.
+## Purpose
+
+Help companies:
+
+- Create kits (assembly jobs + fulfillment orders)
+- Stage components at locations with barcode scan workflows
+- Track dual inventory (RAW components vs sealed kits)
+- Generate pick lists / kit sheets
+- Seal kits with multi-factor completeness fingerprints
+- Run per-customer Method DNA (versioned process IP)
 
 ## Stack
 
-- Next.js 16 (App Router) + TypeScript + Tailwind
-- Prisma 6 + SQLite (zero-config demo; swap to Postgres for production)
-- Session auth (JWT cookie via `jose`)
-- Vitest for seal + scan grammar unit tests
+| Layer  | Choice                                          | Notes                                     |
+| ------ | ----------------------------------------------- | ----------------------------------------- |
+| App    | Next.js 16 (App Router) + TypeScript + Tailwind | Portable web frontend                     |
+| API    | Next.js Route Handlers                          | Same deployable unit                      |
+| DB     | PostgreSQL + Prisma 6                           | Own your data; swap hosts freely          |
+| Auth   | JWT HTTP-only cookies (`jose`)                  | No auth SaaS required                     |
+| Tests  | Vitest                                          | Core domain pure functions                |
+| CI     | GitHub Actions                                  | Lint, format, typecheck, test, build      |
+| Deploy | Vercel                                          | Solid Systems default for light fullstack |
 
-## Live demo
+## Live
 
-**Production:** [https://kittingmaster.vercel.app](https://kittingmaster.vercel.app)
+- **Production:** https://kittingmaster.vercel.app (HTTPS via Vercel)
+- **Health:** https://kittingmaster.vercel.app/api/health
+- **Demo:** `demo@kittingmaster.app` / `demo1234`
 
-**Demo login**
-
-- Email: `demo@kittingmaster.app`
-- Password: `demo1234`
-
-## Quick start (local)
-
-Requires PostgreSQL (`DATABASE_URL` in `.env` — see `.env.example`).
+## Setup
 
 ```bash
 npm install
@@ -36,62 +43,94 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open http://localhost:3000
 
-## Core workflows
+### Required env vars
 
-| Flow | Path |
-|------|------|
-| Live status board | `/dashboard` |
-| Create kits (assembly or fulfillment) | `/kits` |
-| Scan staging / parts / lots / serials | `/scan` |
-| RAW + KIT ledger view | `/inventory` |
-| Parts, BOMs, locations | `/catalog` |
-| Method DNA + export pack | `/dna` |
+See [`.env.example`](.env.example). **Never commit real secrets.**
 
-### Shop-floor scan grammar (default DNA)
+| Variable         | Purpose                                               |
+| ---------------- | ----------------------------------------------------- |
+| `DATABASE_URL`   | PostgreSQL connection string                          |
+| `SESSION_SECRET` | JWT signing secret (long random in prod)              |
+| `SEED_SECRET`    | Optional admin seed gate                              |
+| `SENTRY_DSN`     | Optional error tracking (SDK not required by default) |
 
-1. Scan **staging cell** barcode (e.g. `STG-CELL-01`)
-2. Scan **part** SKU/barcode
-3. If lot-controlled → scan **lot**
-4. If serial-controlled → scan **serial**
-5. When all lines staged → **Validate & seal** on kit detail
-6. **Release** to assembly or ship
+## Architecture
 
-## API (authenticated)
+High level:
 
-- `POST /api/auth/login` · `POST /api/auth/logout` · `GET /api/auth/me`
-- `GET/POST /api/kits` · `GET /api/kits/:id`
-- `POST /api/kits/:id/pick-list` · `POST /api/kits/:id/seal` · `POST /api/kits/:id/release`
-- `POST /api/scan` (idempotent via `clientEventId`)
-- `GET /api/inventory` · `GET /api/catalog` · `GET /api/status`
-- `GET/POST /api/dna` (list / export pack)
-
-## Multi-tenant model
-
-`Organization` → `Site` → zones/locations. All business rows carry `organizationId`. Demo seed creates **Apex Assembly Co.** with Plant 1 + Fulfillment DC sites.
-
-## Custom IP (Method DNA)
-
-Each customer gets a default DNA profile cloned from platform strategies. Published versions are immutable and bound to kits at creation time. Admins can **Export DNA pack** (JSON) for documentation / backup of customer-specific method configuration.
-
-## Tests
-
-```bash
-npm test
+```
+Browser → Next.js (UI + API) → Prisma → PostgreSQL
+                ↓
+         SSE / webhooks / CSV export
 ```
 
-## Design spec
+Non-obvious domain design (dual ledger, DNA binding, scan FSM):  
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
-See [`docs/superpowers/specs/2026-08-01-kittingmaster-design.md`](docs/superpowers/specs/2026-08-01-kittingmaster-design.md).
+Product design spec:  
+[`docs/superpowers/specs/2026-08-01-kittingmaster-design.md`](docs/superpowers/specs/2026-08-01-kittingmaster-design.md)
 
-## Production notes
+Market positioning:  
+[`docs/MARKET_POSITIONING.md`](docs/MARKET_POSITIONING.md)
 
-- Set a strong `SESSION_SECRET`
-- Change `provider` in `prisma/schema.prisma` to `postgresql` and set `DATABASE_URL`
-- Run migrations against managed Postgres
-- Add RLS policies and OAuth as needed for SaaS hardening
+## Key product surfaces
+
+| Path          | Role                               |
+| ------------- | ---------------------------------- |
+| `/dashboard`  | Live kit board (SSE + ops KPIs)    |
+| `/kits`       | Create / filter kit demands        |
+| `/waves`      | Batch wave picking                 |
+| `/scan`       | Operator scan console              |
+| `/exceptions` | Shortages, FEFO risk, exceptions   |
+| `/inventory`  | RAW ledger, receipts, cycle counts |
+| `/catalog`    | Parts + BOM definitions            |
+| `/dna`        | Method DNA publish/export          |
+| `/settings`   | Webhooks + integration exports     |
+
+## Quality automation
+
+```bash
+npm run format:check   # Prettier
+npm run lint           # ESLint
+npm run typecheck      # tsc --noEmit
+npm test               # Vitest (domain logic)
+npm run build          # Prisma generate + Next build
+npm run ci             # all of the above
+```
+
+CI runs on every push/PR to `main` via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+## Deploy
+
+**Default:** Vercel from Git (`main` → production).
+
+1. Connect the GitHub repo to Vercel
+2. Set env vars in the Vercel project (not in git):
+   - `DATABASE_URL`
+   - `SESSION_SECRET`
+3. Run migrations against prod DB once: `npm run db:deploy` (with prod `DATABASE_URL`)
+4. Optional seed: `npm run db:seed`
+
+Health check for monitors: `GET /api/health`
+
+- `200` = app + database OK
+- `503` = database degraded
+
+## Observability
+
+- Structured JSON logs via `src/lib/observability.ts`
+- Unexpected API errors go through `captureError` (no silent 500s)
+- `/api/health` for uptime checks
+- Optional Sentry: set `SENTRY_DSN` and install `@sentry/nextjs` when you want hosted error tracking (intentionally not a hard dependency)
+
+## Secrets policy
+
+- Secrets only in `.env` (local), Vercel env, or GitHub Secrets
+- `.env` / `.env.local` are gitignored
+- `.env.example` documents keys without values
 
 ## License
 
-Proprietary — all rights reserved for product and customer Method DNA IP concepts.
+Proprietary — product and customer Method DNA IP concepts reserved.

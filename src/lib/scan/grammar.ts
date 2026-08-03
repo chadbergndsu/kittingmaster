@@ -4,20 +4,11 @@
  */
 
 export type ScanState =
-  | "EXPECT_LOCATION"
-  | "EXPECT_PART"
-  | "EXPECT_LOT"
-  | "EXPECT_SERIAL"
-  | "COMPLETE";
+  "EXPECT_LOCATION" | "EXPECT_PART" | "EXPECT_LOT" | "EXPECT_SERIAL" | "COMPLETE";
 
 export type TrackingMode = "NONE" | "LOT" | "SERIAL" | "LOT_AND_SERIAL";
 
-export type ScanEventType =
-  | "SCAN_LOCATION"
-  | "SCAN_PART"
-  | "SCAN_LOT"
-  | "SCAN_SERIAL"
-  | "RESET";
+export type ScanEventType = "SCAN_LOCATION" | "SCAN_PART" | "SCAN_LOT" | "SCAN_SERIAL" | "RESET";
 
 export type GrammarResult =
   | { ok: true; next: ScanState; message: string }
@@ -95,10 +86,7 @@ export function transitionScan(input: {
         return {
           ok: true,
           next,
-          message:
-            next === "COMPLETE"
-              ? "Lot accepted. Ready to stage."
-              : "Scan serial number.",
+          message: next === "COMPLETE" ? "Lot accepted. Ready to stage." : "Scan serial number.",
         };
       }
       return {
