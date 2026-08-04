@@ -61,9 +61,7 @@ export function AppShell({
             </div>
             <div className="text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-emerald-300/90 mt-1">
               Customized view ·{" "}
-              {user?.role
-                ? String(user.role).replaceAll("_", " ").toLowerCase()
-                : "operations"}
+              {user?.role ? String(user.role).replaceAll("_", " ").toLowerCase() : "operations"}
             </div>
           </div>
         </div>

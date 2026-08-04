@@ -1,11 +1,16 @@
-import { requireSession } from "@/lib/auth/session";
+import { requireRole } from "@/lib/auth/session";
+import { EXPORT_ROLES } from "@/lib/auth/roles";
 import { prisma } from "@/lib/db";
 import { jsonError } from "@/lib/api";
+
+function csvCell(c: string) {
+  return `"${String(c).replaceAll('"', '""').replaceAll(/\r?\n/g, " ")}"`;
+}
 
 /** CSV export for ERP/MRP integration — market requirement. */
 export async function GET() {
   try {
-    const session = await requireSession();
+    const session = await requireRole(EXPORT_ROLES, "Insufficient role to export kits");
     const kits = await prisma.kit.findMany({
       where: { organizationId: session.organizationId },
       include: {
@@ -16,6 +21,7 @@ export async function GET() {
         lines: { include: { part: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: 10000,
     });
 
     const headers = [
@@ -54,9 +60,9 @@ export async function GET() {
         String(staged),
         k.createdAt.toISOString(),
         k.sealedAt?.toISOString() ?? "",
-        (k.exceptionReason ?? "").replaceAll(",", ";"),
+        k.exceptionReason ?? "",
       ]
-        .map((c) => `"${String(c).replaceAll('"', '""')}"`)
+        .map(csvCell)
         .join(",");
     });
 
@@ -65,6 +71,7 @@ export async function GET() {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="kittingmaster-kits-${Date.now()}.csv"`,
+        "X-Row-Count": String(kits.length),
       },
     });
   } catch (e) {

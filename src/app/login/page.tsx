@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("demo@kittingmaster.app");
-  const [password, setPassword] = useState("demo1234");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -58,21 +58,27 @@ export default function LoginPage() {
             <div className="nav-icon">1</div>
             <div>
               <strong>Dual-ledger inventory</strong>
-              <span>RAW components and sealed KIT instances stay honest through every transfer.</span>
+              <span>
+                RAW components and sealed KIT instances stay honest through every transfer.
+              </span>
             </div>
           </div>
           <div className="feature-item">
             <div className="nav-icon">2</div>
             <div>
               <strong>Kit Seal fingerprint</strong>
-              <span>BOM + lot/serial + staging cell + DNA version bound into one seal artifact.</span>
+              <span>
+                BOM + lot/serial + staging cell + DNA version bound into one seal artifact.
+              </span>
             </div>
           </div>
           <div className="feature-item">
             <div className="nav-icon">3</div>
             <div>
               <strong>Customer Method DNA</strong>
-              <span>Each tenant runs proprietary staging & validation methods — isolated and exportable.</span>
+              <span>
+                Each tenant runs proprietary staging & validation methods — isolated and exportable.
+              </span>
             </div>
           </div>
         </div>
@@ -121,11 +127,15 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-6 pt-5 border-t border-[var(--border)] text-xs text-[var(--muted)]">
-              <div className="font-semibold text-[var(--text-secondary)] mb-1">Demo credentials</div>
-              <div className="mono text-sky-200/90">demo@kittingmaster.app</div>
-              <div className="mono text-sky-200/90">demo1234</div>
-            </div>
+            {process.env.NODE_ENV !== "production" && (
+              <div className="mt-6 pt-5 border-t border-[var(--border)] text-xs text-[var(--muted)]">
+                <div className="font-semibold text-[var(--text-secondary)] mb-1">
+                  Local demo (dev only)
+                </div>
+                <div className="mono text-sky-200/90">demo@kittingmaster.app</div>
+                <div className="mono text-sky-200/90">demo1234</div>
+              </div>
+            )}
           </div>
         </div>
       </section>

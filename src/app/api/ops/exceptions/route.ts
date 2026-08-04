@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { requireSession } from "@/lib/auth/session";
+import { requireSession, requireRole } from "@/lib/auth/session";
+import { SUPERVISOR_ROLES } from "@/lib/auth/roles";
 import { prisma } from "@/lib/db";
 import { clearKitException, raiseKitException } from "@/lib/ops/exceptions";
 import { jsonError, jsonOk } from "@/lib/api";
@@ -39,7 +40,7 @@ const clearSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireSession();
+    const session = await requireRole(SUPERVISOR_ROLES, "Supervisor+ required for exceptions");
     const body = await req.json();
 
     if (body.action === "clear") {

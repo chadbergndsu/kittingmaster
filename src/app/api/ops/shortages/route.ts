@@ -8,28 +8,54 @@ export async function GET() {
     const session = await requireSession();
     const orgId = session.organizationId;
 
-    const [balances, kitLines, lots] = await Promise.all([
+    const openStatuses = [
+      "PENDING",
+      "ALLOCATED",
+      "PICKING",
+      "STAGED",
+      "VALIDATING",
+      "EXCEPTION",
+    ] as const;
+
+    const [balances, kitLines, lots, holds, lotBalances] = await Promise.all([
       prisma.inventoryBalance.findMany({
         where: { organizationId: orgId },
         select: { partId: true, onHand: true, reserved: true, staged: true },
+        take: 20000,
       }),
       prisma.kitLine.findMany({
-        where: { kit: { organizationId: orgId } },
+        where: {
+          kit: { organizationId: orgId, status: { in: [...openStatuses] } },
+        },
         include: {
           part: true,
           kit: { include: { demand: true } },
         },
+        take: 20000,
       }),
       prisma.lot.findMany({
         where: { organizationId: orgId },
         include: { part: true },
+        take: 5000,
+      }),
+      prisma.stockHold.findMany({
+        where: { organizationId: orgId },
+        select: { kitLineId: true, qty: true, qtyConsumed: true },
+      }),
+      prisma.inventoryBalance.findMany({
+        where: { organizationId: orgId, lotId: { not: "" } },
+        select: { lotId: true, onHand: true },
+        take: 20000,
       }),
     ]);
 
-    // qty per lot from balances
-    const lotBalances = await prisma.inventoryBalance.findMany({
-      where: { organizationId: orgId, lotId: { not: "" } },
-    });
+    const reservedByLine = new Map<string, number>();
+    for (const h of holds) {
+      const rem = h.qty - h.qtyConsumed;
+      if (rem <= 0) continue;
+      reservedByLine.set(h.kitLineId, (reservedByLine.get(h.kitLineId) || 0) + rem);
+    }
+
     const lotQty = new Map<string, number>();
     for (const b of lotBalances) {
       if (!b.lotId) continue;
@@ -47,6 +73,7 @@ export async function GET() {
         partName: l.part.name,
         requiredQty: l.requiredQty,
         stagedQty: l.stagedQty,
+        reservedQty: reservedByLine.get(l.id) || 0,
         dueAt: l.kit.demand?.dueAt,
         priority: l.kit.demand?.priority,
       }))

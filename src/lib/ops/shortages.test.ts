@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { computeShortages, availableOf } from "./shortages";
+import { computeShortages, availableOf, supplyOf } from "./shortages";
 import { computeOpsMetrics } from "./metrics";
 
 describe("shortage engine", () => {
-  it("computes available stock correctly", () => {
+  it("computes free available stock correctly", () => {
     expect(availableOf({ partId: "p", onHand: 10, reserved: 3, staged: 2 })).toBe(5);
+    expect(supplyOf({ partId: "p", onHand: 10, reserved: 3, staged: 2 })).toBe(8);
   });
 
-  it("flags critical shortages when demand exceeds available", () => {
+  it("flags critical shortages when demand exceeds supply", () => {
     const rows = computeShortages(
       [{ partId: "p1", onHand: 5, reserved: 0, staged: 0 }],
       [
@@ -26,6 +27,29 @@ describe("shortage engine", () => {
     expect(rows[0].shortBy).toBe(5);
     expect(rows[0].severity).toBe("CRITICAL");
     expect(rows[0].blockingKits).toHaveLength(1);
+  });
+
+  it("does not double-count reserved coverage as a shortage", () => {
+    // 10 on hand, all reserved for kit; demand 10 with reservedQty 10 → not short
+    const rows = computeShortages(
+      [{ partId: "p1", onHand: 10, reserved: 10, staged: 0 }],
+      [
+        {
+          kitId: "k1",
+          kitInstanceCode: "KIT-1",
+          kitStatus: "ALLOCATED",
+          partId: "p1",
+          sku: "BRK",
+          partName: "Bracket",
+          requiredQty: 10,
+          stagedQty: 0,
+          reservedQty: 10,
+        },
+      ]
+    );
+    const critical = rows.filter((r) => r.severity === "CRITICAL");
+    expect(critical).toHaveLength(0);
+    expect(rows[0].shortBy).toBe(0);
   });
 
   it("ignores sealed kits in open demand", () => {

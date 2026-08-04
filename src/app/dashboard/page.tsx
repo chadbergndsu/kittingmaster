@@ -42,9 +42,7 @@ export default async function DashboardPage() {
           status: k.status,
           sealFingerprint: k.sealFingerprint,
           kitDefinition: { name: k.kitDefinition.name, code: k.kitDefinition.code },
-          demand: k.demand
-            ? { type: k.demand.type, externalRef: k.demand.externalRef }
-            : null,
+          demand: k.demand ? { type: k.demand.type, externalRef: k.demand.externalRef } : null,
           stagingLocation: k.stagingLocation ? { code: k.stagingLocation.code } : null,
           lines: k.lines.map((l) => ({
             stagedQty: l.stagedQty,

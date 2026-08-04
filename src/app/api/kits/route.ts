@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { DemandType } from "@prisma/client";
-import { requireSession } from "@/lib/auth/session";
+import { requireSession, requireRole } from "@/lib/auth/session";
+import { PLANNER_ROLES } from "@/lib/auth/roles";
 import { prisma } from "@/lib/db";
 import { createKitDemand } from "@/lib/kits/service";
 import { jsonError, jsonOk } from "@/lib/api";
@@ -19,6 +20,7 @@ export async function GET() {
         dnaVersion: true,
       },
       orderBy: { createdAt: "desc" },
+      take: 500,
     });
     return jsonOk({ kits });
   } catch (e) {
@@ -36,7 +38,7 @@ const createSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireSession();
+    const session = await requireRole(PLANNER_ROLES, "Planner+ required to create kits");
     const body = createSchema.parse(await req.json());
     const kit = await createKitDemand({
       organizationId: session.organizationId,

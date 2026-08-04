@@ -3,10 +3,7 @@ import { prisma } from "@/lib/db";
 import { DomainError } from "@/lib/inventory/ledger";
 import { jsonError } from "@/lib/api";
 
-export async function GET(
-  _req: Request,
-  ctx: { params: Promise<{ id: string; docId: string }> }
-) {
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string; docId: string }> }) {
   try {
     const session = await requireSession();
     const { id, docId } = await ctx.params;
@@ -51,8 +48,5 @@ export async function GET(
 }
 
 function escapeHtml(s: string) {
-  return s
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+  return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }

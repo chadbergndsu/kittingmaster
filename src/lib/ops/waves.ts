@@ -11,8 +11,7 @@ function waveCode() {
 }
 
 /**
- * Wave picking — market standard for batching multiple kits into one pick run.
- * Groups ALLOCATED/PENDING kits, releases pick lists ordered by location affinity.
+ * Wave picking — batch multiple kits into one pick run.
  */
 export async function createWave(input: {
   organizationId: string;
@@ -26,6 +25,11 @@ export async function createWave(input: {
     throw new DomainError("EMPTY_WAVE", "Select at least one kit");
   }
 
+  const site = await prisma.site.findFirst({
+    where: { id: input.siteId, organizationId: input.organizationId },
+  });
+  if (!site) throw new DomainError("NOT_FOUND", "Site not found for organization");
+
   const kits = await prisma.kit.findMany({
     where: {
       organizationId: input.organizationId,
@@ -37,6 +41,9 @@ export async function createWave(input: {
       kitDefinition: true,
       demand: true,
       dnaVersion: true,
+      waveKits: {
+        include: { wave: true },
+      },
     },
   });
 
@@ -45,43 +52,60 @@ export async function createWave(input: {
   }
 
   for (const k of kits) {
-    if (["SEALED", "RELEASED", "CANCELLED"].includes(k.status)) {
+    if (["SEALED", "RELEASED", "CANCELLED", "EXCEPTION"].includes(k.status)) {
       throw new DomainError(
         "INVALID_STATUS",
         `Kit ${k.kitInstanceCode} cannot join wave (${k.status})`
       );
     }
+    const active = k.waveKits.find((wk) =>
+      ["OPEN", "RELEASED", "IN_PROGRESS"].includes(wk.wave.status)
+    );
+    if (active) {
+      throw new DomainError(
+        "ALREADY_IN_WAVE",
+        `Kit ${k.kitInstanceCode} already on wave ${active.wave.code}`
+      );
+    }
   }
 
-  const wave = await prisma.wave.create({
-    data: {
-      organizationId: input.organizationId,
-      siteId: input.siteId,
-      code: waveCode(),
-      name: input.name || `Wave ${new Date().toISOString().slice(0, 16)}`,
-      notes: input.notes,
-      status: WaveStatus.OPEN,
-      kits: {
-        create: kits.map((k, i) => ({ kitId: k.id, sortOrder: i + 1 })),
-      },
-    },
-    include: {
-      kits: { include: { kit: { include: { kitDefinition: true, demand: true } } } },
-    },
-  });
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const wave = await prisma.wave.create({
+        data: {
+          organizationId: input.organizationId,
+          siteId: input.siteId,
+          code: waveCode(),
+          name: input.name || `Wave ${new Date().toISOString().slice(0, 16)}`,
+          notes: input.notes,
+          status: WaveStatus.OPEN,
+          kits: {
+            create: kits.map((k, i) => ({ kitId: k.id, sortOrder: i + 1 })),
+          },
+        },
+        include: {
+          kits: { include: { kit: { include: { kitDefinition: true, demand: true } } } },
+        },
+      });
 
-  await prisma.auditEvent.create({
-    data: {
-      organizationId: input.organizationId,
-      actorId: input.actorId,
-      action: "WAVE_CREATED",
-      entityType: "Wave",
-      entityId: wave.id,
-      payloadJson: JSON.stringify({ code: wave.code, kitCount: kits.length }),
-    },
-  });
+      await prisma.auditEvent.create({
+        data: {
+          organizationId: input.organizationId,
+          actorId: input.actorId,
+          action: "WAVE_CREATED",
+          entityType: "Wave",
+          entityId: wave.id,
+          payloadJson: JSON.stringify({ code: wave.code, kitCount: kits.length }),
+        },
+      });
 
-  return wave;
+      return wave;
+    } catch (e) {
+      if ((e as { code?: string }).code === "P2002") continue;
+      throw e;
+    }
+  }
+  throw new DomainError("WAVE_CODE_COLLISION", "Could not allocate unique wave code");
 }
 
 export async function releaseWave(input: {
@@ -108,11 +132,15 @@ export async function releaseWave(input: {
     },
   });
   if (!wave) throw new DomainError("NOT_FOUND", "Wave not found");
-  if (wave.status !== WaveStatus.OPEN && wave.status !== WaveStatus.RELEASED) {
+
+  // Idempotent: already released → return current state
+  if (wave.status === WaveStatus.RELEASED) {
+    return wave;
+  }
+  if (wave.status !== WaveStatus.OPEN) {
     throw new DomainError("INVALID_STATUS", `Wave is ${wave.status}`);
   }
 
-  // Build consolidated pick document (market: single wave pick list)
   const lines: string[] = [
     `=== KITTINGMASTER WAVE PICK LIST ===`,
     `Wave: ${wave.code} · ${wave.name ?? ""}`,
@@ -121,7 +149,6 @@ export async function releaseWave(input: {
     "---",
   ];
 
-  // Aggregate demand by SKU for batch pick efficiency
   const agg = new Map<string, { sku: string; name: string; qty: number }>();
   for (const wk of wave.kits) {
     for (const line of wk.kit.lines) {
@@ -151,11 +178,20 @@ export async function releaseWave(input: {
 
   const content = lines.join("\n");
 
-  await prisma.$transaction(async (tx) => {
-    await tx.wave.update({
-      where: { id: wave.id },
+  const released = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.wave.updateMany({
+      where: {
+        id: wave.id,
+        organizationId: input.organizationId,
+        status: WaveStatus.OPEN,
+      },
       data: { status: WaveStatus.RELEASED, releasedAt: new Date() },
     });
+    if (claimed.count === 0) {
+      // Concurrent release won
+      return null;
+    }
+
     for (const wk of wave.kits) {
       if (wk.kit.status === "PENDING" || wk.kit.status === "ALLOCATED") {
         await tx.kit.update({
@@ -163,14 +199,24 @@ export async function releaseWave(input: {
           data: { status: "PICKING" },
         });
       }
-      await tx.document.create({
-        data: {
-          organizationId: input.organizationId,
+      // One WAVE_LIST per kit per wave (idempotent on re-entry via claim)
+      const existing = await tx.document.findFirst({
+        where: {
           kitId: wk.kitId,
           type: DocumentType.WAVE_LIST,
-          content: `Wave ${wave.code}\n\n${content}`,
+          content: { startsWith: `Wave ${wave.code}` },
         },
       });
+      if (!existing) {
+        await tx.document.create({
+          data: {
+            organizationId: input.organizationId,
+            kitId: wk.kitId,
+            type: DocumentType.WAVE_LIST,
+            content: `Wave ${wave.code}\n\n${content}`,
+          },
+        });
+      }
     }
     await tx.auditEvent.create({
       data: {
@@ -182,7 +228,21 @@ export async function releaseWave(input: {
         payloadJson: JSON.stringify({ code: wave.code }),
       },
     });
+    return true;
   });
+
+  if (released === null) {
+    // Lost race — return current wave (likely RELEASED)
+    return prisma.wave.findUnique({
+      where: { id: wave.id },
+      include: {
+        kits: {
+          include: { kit: { include: { kitDefinition: true, demand: true } } },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+    });
+  }
 
   return prisma.wave.findUnique({
     where: { id: wave.id },

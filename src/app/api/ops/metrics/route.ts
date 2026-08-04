@@ -9,6 +9,8 @@ export async function GET() {
     const kits = await prisma.kit.findMany({
       where: { organizationId: session.organizationId },
       include: { demand: true },
+      orderBy: { updatedAt: "desc" },
+      take: 5000,
     });
 
     const metrics = computeOpsMetrics(
@@ -26,7 +28,7 @@ export async function GET() {
 
     const recentSeals = kits
       .filter((k) => k.sealedAt)
-      .sort((a, b) => (b.sealedAt!.getTime() - a.sealedAt!.getTime()))
+      .sort((a, b) => b.sealedAt!.getTime() - a.sealedAt!.getTime())
       .slice(0, 8)
       .map((k) => ({
         id: k.id,

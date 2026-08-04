@@ -1,4 +1,5 @@
-import { requireSession } from "@/lib/auth/session";
+import { requireSession, requireRole } from "@/lib/auth/session";
+import { EXPORT_ROLES } from "@/lib/auth/roles";
 import { prisma } from "@/lib/db";
 import { exportDnaPack } from "@/lib/dna/defaults";
 import { jsonError, jsonOk } from "@/lib/api";
@@ -20,7 +21,7 @@ export async function GET() {
 
 export async function POST() {
   try {
-    const session = await requireSession();
+    const session = await requireRole(EXPORT_ROLES, "Insufficient role to export Method DNA");
     const dna = await prisma.methodDna.findFirst({
       where: { organizationId: session.organizationId, isDefault: true },
       include: {

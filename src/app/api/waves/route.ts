@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { requireSession } from "@/lib/auth/session";
+import { requireSession, requireRole } from "@/lib/auth/session";
+import { PLANNER_ROLES } from "@/lib/auth/roles";
 import { prisma } from "@/lib/db";
 import { createWave } from "@/lib/ops/waves";
 import { jsonError, jsonOk } from "@/lib/api";
@@ -37,7 +38,7 @@ const createSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireSession();
+    const session = await requireRole(PLANNER_ROLES, "Planner+ required to create waves");
     const body = createSchema.parse(await req.json());
     const wave = await createWave({
       organizationId: session.organizationId,

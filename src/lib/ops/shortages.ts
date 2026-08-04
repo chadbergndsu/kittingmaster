@@ -1,6 +1,8 @@
 /**
- * Shortage engine — market-critical for kitting (kits blocked when components missing).
- * Computes available RAW (onHand - reserved - staged) vs open kit demand.
+ * Shortage engine — available free stock vs unmet open demand.
+ * Reserved qty is already allocated to open kits, so free = onHand - reserved - staged.
+ * Demand for kits that already hold reservations should not double-count:
+ * openNeed is reduced by reserved-for-open-demand when provided.
  */
 
 export type BalanceInput = {
@@ -19,6 +21,8 @@ export type DemandLineInput = {
   partName: string;
   requiredQty: number;
   stagedQty: number;
+  /** Qty already reserved (held) for this line — credits open demand. */
+  reservedQty?: number;
   dueAt?: Date | null;
   priority?: number;
 };
@@ -40,20 +44,29 @@ export type ShortageRow = {
   severity: "CRITICAL" | "WARN" | "OK";
 };
 
+/** Free stock not held by any kit. */
 export function availableOf(b: BalanceInput): number {
   return Math.max(0, b.onHand - b.reserved - b.staged);
+}
+
+/**
+ * Total physical not yet staged — free + reserved (usable by holders).
+ * Used for supply capacity vs open demand.
+ */
+export function supplyOf(b: BalanceInput): number {
+  return Math.max(0, b.onHand - b.staged);
 }
 
 export function computeShortages(
   balances: BalanceInput[],
   demandLines: DemandLineInput[]
 ): ShortageRow[] {
-  const avail = new Map<string, number>();
+  // Total supply (free + reserved) can cover open kits that hold reservations
+  const supply = new Map<string, number>();
   for (const b of balances) {
-    avail.set(b.partId, (avail.get(b.partId) || 0) + availableOf(b));
+    supply.set(b.partId, (supply.get(b.partId) || 0) + supplyOf(b));
   }
 
-  // Only open kit demand (not sealed/released/cancelled)
   const openStatuses = new Set([
     "PENDING",
     "ALLOCATED",
@@ -75,8 +88,12 @@ export function computeShortages(
 
   for (const line of demandLines) {
     if (!openStatuses.has(line.kitStatus)) continue;
-    const need = Math.max(0, line.requiredQty - line.stagedQty);
-    if (need <= 0) continue;
+    // Unmet need after staging; reserved hold already counts toward coverage
+    const remainingAfterStage = Math.max(0, line.requiredQty - line.stagedQty);
+    const reserved = Math.max(0, line.reservedQty ?? 0);
+    // Net demand still needing free stock
+    const need = Math.max(0, remainingAfterStage - reserved);
+    if (remainingAfterStage <= 0) continue;
 
     const cur = byPart.get(line.partId) || {
       sku: line.sku,
@@ -84,21 +101,27 @@ export function computeShortages(
       openDemand: 0,
       blockingKits: [],
     };
-    cur.openDemand += need;
-    cur.blockingKits.push({
-      kitId: line.kitId,
-      kitInstanceCode: line.kitInstanceCode,
-      need,
-      status: line.kitStatus,
-      dueAt: line.dueAt?.toISOString() ?? null,
-    });
+    // Open demand for reporting = remaining physical need (including reserved coverage)
+    cur.openDemand += remainingAfterStage;
+    if (need > 0) {
+      cur.blockingKits.push({
+        kitId: line.kitId,
+        kitInstanceCode: line.kitInstanceCode,
+        need: remainingAfterStage,
+        status: line.kitStatus,
+        dueAt: line.dueAt?.toISOString() ?? null,
+      });
+    }
     byPart.set(line.partId, cur);
   }
 
   const rows: ShortageRow[] = [];
   for (const [partId, d] of byPart) {
-    const available = avail.get(partId) || 0;
+    const available = supply.get(partId) || 0;
     const shortBy = Math.max(0, d.openDemand - available);
+    // WARN only when free margin is thin but not short (within 10% buffer of exact cover)
+    const severity: ShortageRow["severity"] =
+      shortBy > 0 ? "CRITICAL" : available < d.openDemand * 1.1 && d.openDemand > 0 ? "WARN" : "OK";
     rows.push({
       partId,
       sku: d.sku,
@@ -107,7 +130,7 @@ export function computeShortages(
       openDemand: d.openDemand,
       shortBy,
       blockingKits: d.blockingKits.sort((a, b) => b.need - a.need),
-      severity: shortBy > 0 ? "CRITICAL" : available < d.openDemand * 1.1 ? "WARN" : "OK",
+      severity,
     });
   }
 

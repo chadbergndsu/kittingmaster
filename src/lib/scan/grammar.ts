@@ -121,9 +121,10 @@ export function transitionScan(input: {
         return { ok: true, next: "EXPECT_PART", message: "Location updated. Scan part." };
       }
       return {
-        ok: true,
+        ok: false,
         next: "EXPECT_PART",
-        message: "Line complete. Scan next part.",
+        code: "EXPECTED_PART",
+        message: "Line complete. Scan next part barcode.",
       };
 
     default:

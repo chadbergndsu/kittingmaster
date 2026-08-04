@@ -50,19 +50,13 @@ export function KitFilters({ kits }: { kits: Kit[] }) {
             onChange={(e) => setStatus(e.target.value)}
           >
             <option value="ALL">All statuses</option>
-            {[
-              "PENDING",
-              "ALLOCATED",
-              "PICKING",
-              "STAGED",
-              "SEALED",
-              "RELEASED",
-              "EXCEPTION",
-            ].map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
+            {["PENDING", "ALLOCATED", "PICKING", "STAGED", "SEALED", "RELEASED", "EXCEPTION"].map(
+              (s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              )
+            )}
           </select>
           <select
             className="input !py-1.5 !text-sm w-auto"
@@ -90,16 +84,11 @@ export function KitFilters({ kits }: { kits: Kit[] }) {
           </thead>
           <tbody>
             {filtered.map((k) => {
-              const pct = Math.min(
-                100,
-                Math.round((k.staged / (k.required || 1)) * 100)
-              );
+              const pct = Math.min(100, Math.round((k.staged / (k.required || 1)) * 100));
               return (
                 <tr key={k.id}>
                   <td>
-                    <div className="mono font-semibold text-sky-200/90">
-                      {k.kitInstanceCode}
-                    </div>
+                    <div className="mono font-semibold text-sky-200/90">{k.kitInstanceCode}</div>
                     <div className="text-xs text-[var(--muted)]">{k.defName}</div>
                   </td>
                   <td className="text-sm">

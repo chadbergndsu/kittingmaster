@@ -18,7 +18,8 @@ export function jsonError(err: unknown, fallback = "Internal error") {
     return NextResponse.json({ error: err.message, code: err.code }, { status });
   }
   if (err instanceof AuthError) {
-    return NextResponse.json({ error: err.message, code: err.code }, { status: 401 });
+    const status = err.code === "FORBIDDEN" ? 403 : 401;
+    return NextResponse.json({ error: err.message, code: err.code }, { status });
   }
   if (err && typeof err === "object" && "code" in err && "message" in err) {
     const e = err as { code: string; message: string };

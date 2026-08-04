@@ -29,9 +29,7 @@ export async function GET() {
       const send = (event: string, data: unknown) => {
         if (closed) return;
         try {
-          controller.enqueue(
-            enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
-          );
+          controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
         } catch {
           closed = true;
         }
@@ -81,9 +79,7 @@ export async function GET() {
             send("kits", { items: kits });
           }
 
-          const statusCounts = Object.fromEntries(
-            counts.map((c) => [c.status, c._count._all])
-          );
+          const statusCounts = Object.fromEntries(counts.map((c) => [c.status, c._count._all]));
           send("counts", { counts: statusCounts, at: new Date().toISOString() });
         } catch (e) {
           send("error", { message: e instanceof Error ? e.message : "poll failed" });
@@ -91,7 +87,8 @@ export async function GET() {
       };
 
       void tick();
-      interval = setInterval(() => void tick(), 2500);
+      // 8s poll to reduce DB load vs 2.5s; still live enough for floor board
+      interval = setInterval(() => void tick(), 8000);
       heartbeat = setInterval(() => {
         if (!closed) {
           try {
@@ -100,7 +97,22 @@ export async function GET() {
             closed = true;
           }
         }
-      }, 15000);
+      }, 20000);
+
+      // Hard cap stream lifetime (serverless-friendly)
+      setTimeout(
+        () => {
+          closed = true;
+          if (interval) clearInterval(interval);
+          if (heartbeat) clearInterval(heartbeat);
+          try {
+            controller.close();
+          } catch {
+            /* already closed */
+          }
+        },
+        10 * 60 * 1000
+      );
     },
     cancel() {
       closed = true;

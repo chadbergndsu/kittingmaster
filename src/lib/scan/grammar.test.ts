@@ -40,4 +40,22 @@ describe("scan grammar", () => {
     });
     expect(state.ok && state.next).toBe("COMPLETE");
   });
+
+  it("rejects illegal events on COMPLETE", () => {
+    const r = transitionScan({
+      state: "COMPLETE",
+      event: "SCAN_LOT",
+      tracking: "LOT",
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("resets to EXPECT_LOCATION by default", () => {
+    const r = transitionScan({
+      state: "EXPECT_SERIAL",
+      event: "RESET",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.next).toBe("EXPECT_LOCATION");
+  });
 });

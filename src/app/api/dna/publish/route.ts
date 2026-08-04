@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { requireSession } from "@/lib/auth/session";
+import { requireRole } from "@/lib/auth/session";
+import { ADMIN_ROLES } from "@/lib/auth/roles";
 import { prisma } from "@/lib/db";
 import { hashDnaContent } from "@/lib/dna/defaults";
 import { jsonError, jsonOk } from "@/lib/api";
@@ -20,10 +21,7 @@ function bumpPatch(version: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireSession();
-    if (!["OWNER", "ADMIN"].includes(session.role)) {
-      throw new DomainError("FORBIDDEN", "Only OWNER/ADMIN can publish Method DNA");
-    }
+    const session = await requireRole(ADMIN_ROLES, "Only OWNER/ADMIN can publish Method DNA");
 
     const body = schema.parse(await req.json().catch(() => ({})));
     const dna = await prisma.methodDna.findFirst({
@@ -35,7 +33,8 @@ export async function POST(req: NextRequest) {
     if (!dna?.versions[0]) throw new DomainError("DNA_MISSING", "No Method DNA found");
 
     const prev = dna.versions[0];
-    const strategies = body.strategies ?? (JSON.parse(prev.strategiesJson) as Record<string, string>);
+    const strategies =
+      body.strategies ?? (JSON.parse(prev.strategiesJson) as Record<string, string>);
     const config = body.config ?? (JSON.parse(prev.configJson) as Record<string, unknown>);
     const version = body.version ?? bumpPatch(prev.version);
     const contentHash = hashDnaContent(strategies, config);

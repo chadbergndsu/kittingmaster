@@ -3,13 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function WaveReleaseButton({
-  waveId,
-  status,
-}: {
-  waveId: string;
-  status: string;
-}) {
+export function WaveReleaseButton({ waveId, status }: { waveId: string; status: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);

@@ -41,9 +41,7 @@ export default async function InventoryPage() {
 
   const lotIds = balances.map((b) => b.lotId).filter(Boolean);
   const serialIds = balances.map((b) => b.serialId).filter(Boolean);
-  const lots = lotIds.length
-    ? await prisma.lot.findMany({ where: { id: { in: lotIds } } })
-    : [];
+  const lots = lotIds.length ? await prisma.lot.findMany({ where: { id: { in: lotIds } } }) : [];
   const serials = serialIds.length
     ? await prisma.serial.findMany({ where: { id: { in: serialIds } } })
     : [];
@@ -177,11 +175,9 @@ export default async function InventoryPage() {
                     </div>
                   </td>
                   <td className="mono text-xs">
-                    {b.lotId ? lotMap.get(b.lotId)?.lotNumber ?? "—" : "—"}
+                    {b.lotId ? (lotMap.get(b.lotId)?.lotNumber ?? "—") : "—"}
                     <div className="text-[var(--muted)]">
-                      {b.serialId
-                        ? serialMap.get(b.serialId)?.serialNumber ?? ""
-                        : ""}
+                      {b.serialId ? (serialMap.get(b.serialId)?.serialNumber ?? "") : ""}
                     </div>
                   </td>
                   <td className="mono">{b.onHand}</td>

@@ -7,11 +7,7 @@ import { KitActions } from "./KitActions";
 
 export const dynamic = "force-dynamic";
 
-export default async function KitDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function KitDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
   const { id } = await params;
@@ -76,9 +72,7 @@ export default async function KitDetailPage({
         </div>
         <div className="stat-card">
           <div className="stat-label">Method DNA</div>
-          <div className="stat-value !text-lg mt-2 text-violet-300">
-            v{kit.dnaVersion.version}
-          </div>
+          <div className="stat-value !text-lg mt-2 text-violet-300">v{kit.dnaVersion.version}</div>
           <div className="stat-meta mono">{kit.dnaVersion.contentHash.slice(0, 12)}…</div>
         </div>
         <div className="stat-card">

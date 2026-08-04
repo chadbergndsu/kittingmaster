@@ -204,9 +204,7 @@ export function LiveBoard({
         <div className="stat-card">
           <div className="stat-glow" style={{ background: "rgba(251,191,36,0.35)" }} />
           <div className="stat-label">Avg stage min</div>
-          <div className="stat-value text-amber-300">
-            {metrics?.avgStageMinutes ?? "—"}
-          </div>
+          <div className="stat-value text-amber-300">{metrics?.avgStageMinutes ?? "—"}</div>
           <div className="stat-meta">Create → seal</div>
         </div>
         <div className="stat-card">
@@ -267,7 +265,8 @@ export function LiveBoard({
             <div>
               <div className="font-semibold">Kit worklist</div>
               <div className="text-xs text-[var(--muted)] mt-0.5">
-                {filter === "ALL" ? "All statuses" : `Filtered: ${filter}`} · click pipeline to filter
+                {filter === "ALL" ? "All statuses" : `Filtered: ${filter}`} · click pipeline to
+                filter
               </div>
             </div>
             {filter !== "ALL" && (

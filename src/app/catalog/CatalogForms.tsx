@@ -40,7 +40,12 @@ export function CreatePartForm() {
     <form onSubmit={onSubmit} className="grid md:grid-cols-4 gap-3 items-end">
       <div>
         <label className="field-label">SKU</label>
-        <input className="input mono" value={sku} onChange={(e) => setSku(e.target.value)} required />
+        <input
+          className="input mono"
+          value={sku}
+          onChange={(e) => setSku(e.target.value)}
+          required
+        />
       </div>
       <div>
         <label className="field-label">Name</label>
@@ -83,9 +88,7 @@ export function CreateBomForm({ parts }: { parts: Part[] }) {
     setLines((prev) => {
       const existing = prev.find((l) => l.partId === p.id);
       if (existing) {
-        return prev.map((l) =>
-          l.partId === p.id ? { ...l, qty: l.qty + Number(lineQty) } : l
-        );
+        return prev.map((l) => (l.partId === p.id ? { ...l, qty: l.qty + Number(lineQty) } : l));
       }
       return [...prev, { partId: p.id, qty: Number(lineQty), sku: p.sku }];
     });
@@ -127,11 +130,21 @@ export function CreateBomForm({ parts }: { parts: Part[] }) {
       <div className="grid md:grid-cols-2 gap-3">
         <div>
           <label className="field-label">Code</label>
-          <input className="input mono" value={code} onChange={(e) => setCode(e.target.value)} required />
+          <input
+            className="input mono"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            required
+          />
         </div>
         <div>
           <label className="field-label">Name</label>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
         </div>
       </div>
       <div className="grid md:grid-cols-[1fr_100px_auto] gap-2 items-end">

@@ -29,25 +29,33 @@ export function ScanClient() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [kit, setKit] = useState<Kit | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [fsmState, setFsmState] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/kits")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Failed to load kits");
+        return r.json();
+      })
       .then((d) => {
         setKits(d.kits || []);
         if (!kitId && d.kits?.[0]) setKitId(d.kits[0].id);
       })
-      .catch(() => {});
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load kits"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!kitId) return;
     fetch(`/api/kits/${kitId}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Failed to load kit");
+        return r.json();
+      })
       .then((d) => setKit(d.kit))
-      .catch(() => {});
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load kit"));
   }, [kitId]);
 
   useEffect(() => {
@@ -55,41 +63,55 @@ export function ScanClient() {
   }, [prompt, kitId]);
 
   const progress = useMemo(() => {
-    if (!kit) return { s: 0, r: 0, pct: 0 };
+    if (!kit) return { s: 0, r: 0, pct: 0, linesDone: 0, linesTotal: 0 };
+    const linesDone = kit.lines.filter((l) => l.stagedQty + 1e-9 >= l.requiredQty).length;
+    const linesTotal = kit.lines.length || 1;
     const s = kit.lines.reduce((a, l) => a + l.stagedQty, 0);
     const r = kit.lines.reduce((a, l) => a + l.requiredQty, 0) || 1;
-    return { s, r, pct: Math.min(100, Math.round((s / r) * 100)) };
+    // Prefer line completeness for seal readiness
+    return {
+      s,
+      r,
+      pct: Math.min(100, Math.round((linesDone / linesTotal) * 100)),
+      linesDone,
+      linesTotal,
+    };
   }, [kit]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!kitId || !barcode.trim()) return;
+    if (!kitId || !barcode.trim() || busy) return;
+    setBusy(true);
     setError(null);
     setMessage(null);
     const clientEventId =
       typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random()}`;
-    const res = await fetch("/api/scan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clientEventId,
-        kitId,
-        barcode: barcode.trim(),
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setBarcode("");
-    if (!res.ok) {
-      setError(data.error || "Scan failed");
+    try {
+      const res = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientEventId,
+          kitId,
+          barcode: barcode.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setBarcode("");
+      if (!res.ok) {
+        setError(data.error || "Scan failed");
+        return;
+      }
+      setMessage(data.message);
+      setPrompt(data.prompt || prompt);
+      if (data.state) setFsmState(data.state);
+      if (data.kit) setKit(data.kit);
+    } finally {
+      setBusy(false);
       inputRef.current?.focus();
-      return;
     }
-    setMessage(data.message);
-    setPrompt(data.prompt || prompt);
-    if (data.kit) setKit(data.kit);
-    inputRef.current?.focus();
   }
 
   return (
@@ -104,11 +126,7 @@ export function ScanClient() {
         <div className="card">
           <div className="card-body space-y-3">
             <label className="field-label">Active kit session</label>
-            <select
-              className="input mono"
-              value={kitId}
-              onChange={(e) => setKitId(e.target.value)}
-            >
+            <select className="input mono" value={kitId} onChange={(e) => setKitId(e.target.value)}>
               <option value="">Select kit…</option>
               {kits.map((k) => (
                 <option key={k.id} value={k.id}>
@@ -120,11 +138,11 @@ export function ScanClient() {
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <StatusBadge status={kit.status} />
                 <span className="mono text-sm text-[var(--text-secondary)]">
-                  {progress.s}/{progress.r} staged
+                  {progress.s}/{progress.r} staged · {progress.linesDone}/{progress.linesTotal}{" "}
+                  lines
                 </span>
-                <span className="badge mono">
-                  CELL {kit.stagingLocation?.code ?? "unbound"}
-                </span>
+                <span className="badge mono">CELL {kit.stagingLocation?.code ?? "unbound"}</span>
+                {fsmState && <span className="badge mono">FSM {fsmState}</span>}
               </div>
             )}
           </div>
@@ -137,7 +155,7 @@ export function ScanClient() {
           <div className="progress-track mt-3">
             <div className="progress-fill" style={{ width: `${progress.pct}%` }} />
           </div>
-          <div className="stat-meta mt-2">Completeness toward seal</div>
+          <div className="stat-meta mt-2">Line completeness toward seal</div>
         </div>
       </div>
 
@@ -155,9 +173,10 @@ export function ScanClient() {
             onChange={(e) => setBarcode(e.target.value)}
             autoComplete="off"
             autoFocus
+            disabled={busy}
           />
-          <button className="btn btn-primary w-full py-3.5 text-base" type="submit">
-            Accept scan event
+          <button className="btn btn-primary w-full py-3.5 text-base" type="submit" disabled={busy}>
+            {busy ? "Processing…" : "Accept scan event"}
           </button>
         </form>
         <div className="relative z-1 mt-4 space-y-2 max-w-xl mx-auto">

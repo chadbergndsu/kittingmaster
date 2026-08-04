@@ -3,10 +3,27 @@ import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
+import { assertRole } from "./roles";
 
 const COOKIE = "km_session";
-const secret = () =>
-  new TextEncoder().encode(process.env.SESSION_SECRET || "kittingmaster-dev-secret-change-me");
+const DEV_FALLBACK = "kittingmaster-dev-secret-change-me";
+
+function secretBytes() {
+  const raw = process.env.SESSION_SECRET?.trim();
+  if (!raw) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SESSION_SECRET must be set in production");
+    }
+    return new TextEncoder().encode(DEV_FALLBACK);
+  }
+  if (process.env.NODE_ENV === "production" && raw === DEV_FALLBACK) {
+    throw new Error("SESSION_SECRET must not use the development default in production");
+  }
+  if (process.env.NODE_ENV === "production" && raw.length < 32) {
+    throw new Error("SESSION_SECRET must be at least 32 characters in production");
+  }
+  return new TextEncoder().encode(raw);
+}
 
 export type SessionPayload = {
   userId: string;
@@ -24,7 +41,7 @@ export async function createSession(payload: SessionPayload) {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(secret());
+    .sign(secretBytes());
 
   const jar = await cookies();
   jar.set(COOKIE, token, {
@@ -41,22 +58,59 @@ export async function destroySession() {
   jar.delete(COOKIE);
 }
 
+/** Verify JWT only (fast). Prefer requireSession for mutating paths. */
 export async function getSession(): Promise<SessionPayload | null> {
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, secret());
+    const { payload } = await jwtVerify(token, secretBytes());
     return payload as unknown as SessionPayload;
   } catch {
     return null;
   }
 }
 
+/**
+ * Require a live session revalidated against DB membership + role.
+ * Prevents deleted/demoted users from acting on frozen JWT claims.
+ */
 export async function requireSession(): Promise<SessionPayload> {
   const s = await getSession();
   if (!s) throw new AuthError("UNAUTHORIZED", "Not signed in");
-  return s;
+
+  const membership = await prisma.membership.findUnique({
+    where: {
+      userId_organizationId: {
+        userId: s.userId,
+        organizationId: s.organizationId,
+      },
+    },
+    include: {
+      organization: true,
+      user: true,
+    },
+  });
+  if (!membership) {
+    throw new AuthError("UNAUTHORIZED", "Membership revoked");
+  }
+
+  return {
+    userId: membership.userId,
+    email: membership.user.email,
+    name: membership.user.name,
+    organizationId: membership.organizationId,
+    organizationName: membership.organization.name,
+    organizationSlug: membership.organization.slug,
+    role: membership.role,
+    siteId: s.siteId,
+  };
+}
+
+export async function requireRole(allowed: Role[], message?: string): Promise<SessionPayload> {
+  const session = await requireSession();
+  assertRole(session.role, allowed, message);
+  return session;
 }
 
 export async function loginWithPassword(email: string, password: string) {
@@ -65,13 +119,15 @@ export async function loginWithPassword(email: string, password: string) {
     include: {
       memberships: {
         include: { organization: true },
+        orderBy: { organizationId: "asc" },
         take: 1,
       },
     },
   });
-  if (!user) return null;
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return null;
+  // Constant-time-ish: always compare something to avoid pure email enumeration via early return timing
+  const hash = user?.passwordHash ?? "$2a$10$invalidhashpaddingxxxxxxxxxxxxxxxxxxxxxxx";
+  const ok = await bcrypt.compare(password, hash);
+  if (!user || !ok) return null;
   const m = user.memberships[0];
   if (!m) return null;
 
@@ -102,3 +158,6 @@ export class AuthError extends Error {
     this.name = "AuthError";
   }
 }
+
+// re-export for convenience (roles used with requireRole)
+export { assertRole } from "./roles";

@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/PageHeader";
 
 export default function SettingsPage() {
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [hasSecret, setHasSecret] = useState(false);
+  const [shownSecret, setShownSecret] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -12,8 +14,11 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch("/api/settings/webhook")
       .then((r) => r.json())
-      .then((d) => setWebhookUrl(d.webhookUrl || ""))
-      .catch(() => {});
+      .then((d) => {
+        setWebhookUrl(d.webhookUrl || "");
+        setHasSecret(Boolean(d.hasSecret));
+      })
+      .catch(() => setErr("Failed to load webhook settings"));
   }, []);
 
   async function onSubmit(e: FormEvent) {
@@ -21,6 +26,7 @@ export default function SettingsPage() {
     setBusy(true);
     setMsg(null);
     setErr(null);
+    setShownSecret(null);
     const res = await fetch("/api/settings/webhook", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -32,7 +38,9 @@ export default function SettingsPage() {
       setErr(data.error || "Save failed");
       return;
     }
-    setMsg("Webhook saved");
+    setHasSecret(Boolean(data.hasSecret));
+    if (data.webhookSecret) setShownSecret(data.webhookSecret);
+    setMsg("Webhook saved (HTTPS only; private IPs blocked)");
   }
 
   return (
@@ -68,10 +76,21 @@ export default function SettingsPage() {
                 onChange={(e) => setWebhookUrl(e.target.value)}
               />
               <p className="text-xs text-[var(--muted)] mt-2 leading-relaxed">
-                POST JSON with header <span className="mono">X-KittingMaster-Event</span>. Events:{" "}
-                <span className="mono">kit.sealed</span>, <span className="mono">kit.exception</span>.
-                Delivery is async with a 4s timeout and never blocks shop-floor seals.
+                HTTPS only. Private/link-local hosts blocked. POST JSON with{" "}
+                <span className="mono">X-KittingMaster-Event</span> and{" "}
+                <span className="mono">X-KittingMaster-Signature: sha256=…</span>. Events:{" "}
+                <span className="mono">kit.sealed</span>,{" "}
+                <span className="mono">kit.exception</span>. Delivery is async (4s timeout) and
+                never blocks seals.
               </p>
+              {hasSecret && (
+                <p className="text-xs text-emerald-300/80 mt-1">HMAC signing secret configured.</p>
+              )}
+              {shownSecret && (
+                <p className="text-xs mono text-amber-200 mt-2 break-all">
+                  Copy secret now (shown once): {shownSecret}
+                </p>
+              )}
             </div>
             <button className="btn btn-primary" type="submit" disabled={busy}>
               {busy ? "Saving…" : "Save integration"}
@@ -104,7 +123,8 @@ export default function SettingsPage() {
             <span className="mono text-sky-200">GET /api/ops/metrics</span> — throughput KPIs JSON.
           </p>
           <p>
-            <span className="mono text-sky-200">GET /api/ops/shortages</span> — material shortage board.
+            <span className="mono text-sky-200">GET /api/ops/shortages</span> — material shortage
+            board.
           </p>
           <p>
             <span className="mono text-sky-200">GET /api/events</span> — SSE live board stream.

@@ -2,10 +2,7 @@ import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { jsonError, jsonOk } from "@/lib/api";
 
-export async function GET(
-  _req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireSession();
     const { id } = await ctx.params;

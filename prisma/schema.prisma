@@ -107,12 +107,13 @@ enum WaveStatus {
 }
 
 model Organization {
-  id         String   @id @default(cuid())
-  name       String
-  slug       String   @unique
-  webhookUrl String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  webhookUrl    String?
+  webhookSecret String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   memberships    Membership[]
   sites          Site[]
@@ -128,6 +129,7 @@ model Organization {
   auditEvents    AuditEvent[]
   documents      Document[]
   waves          Wave[]
+  stockHolds     StockHold[]
 }
 
 model User {
@@ -303,22 +305,23 @@ model MethodDnaVersion {
 }
 
 model Kit {
-  id                String    @id @default(cuid())
-  organizationId    String
-  siteId            String
-  kitDefinitionId   String
-  demandId          String?
-  dnaVersionId      String
-  status            KitStatus @default(PENDING)
-  stagingLocationId String?
-  kitInstanceCode   String
-  sealFingerprint   String?
-  sealedAt          DateTime?
-  sealedById        String?
-  exceptionReason   String?
-  exceptionAt       DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  organizationId       String
+  siteId               String
+  kitDefinitionId      String
+  demandId             String?
+  dnaVersionId         String
+  status               KitStatus @default(PENDING)
+  statusBeforeException String?
+  stagingLocationId    String?
+  kitInstanceCode      String
+  sealFingerprint      String?
+  sealedAt             DateTime?
+  sealedById           String?
+  exceptionReason      String?
+  exceptionAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   site            Site                   @relation(fields: [siteId], references: [id])
@@ -332,6 +335,7 @@ model Kit {
   transactions    InventoryTransaction[]
   documents       Document[]
   waveKits        WaveKit[]
+  stockHolds      StockHold[]
 
   @@unique([organizationId, kitInstanceCode])
 }
@@ -365,6 +369,7 @@ model WaveKit {
   kit  Kit  @relation(fields: [kitId], references: [id], onDelete: Cascade)
 
   @@unique([waveId, kitId])
+  @@index([kitId])
 }
 
 model KitLine {
@@ -379,6 +384,30 @@ model KitLine {
   part          Part                   @relation(fields: [partId], references: [id])
   transactions  InventoryTransaction[]
   stagedSerials Serial[]               @relation("StagedOnLine")
+  stockHolds    StockHold[]
+}
+
+/** Kit-scoped soft holds so reserved qty cannot be stolen by other kits. */
+model StockHold {
+  id             String   @id @default(cuid())
+  organizationId String
+  siteId         String
+  locationId     String
+  partId         String
+  lotId          String   @default("")
+  serialId       String   @default("")
+  kitId          String
+  kitLineId      String
+  qty            Float
+  qtyConsumed    Float    @default(0)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kit          Kit          @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  kitLine      KitLine      @relation(fields: [kitLineId], references: [id], onDelete: Cascade)
+
+  @@index([kitId, kitLineId])
+  @@index([organizationId, partId, locationId])
 }
 
 model Lot {

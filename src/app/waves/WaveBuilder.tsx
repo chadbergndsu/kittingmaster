@@ -28,15 +28,10 @@ export function WaveBuilder({
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const siteKits = useMemo(
-    () => kits.filter((k) => k.siteId === siteId),
-    [kits, siteId]
-  );
+  const siteKits = useMemo(() => kits.filter((k) => k.siteId === siteId), [kits, siteId]);
 
   function toggle(id: string) {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   async function onSubmit(e: FormEvent) {

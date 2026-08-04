@@ -21,9 +21,7 @@ export async function GET() {
     // Attach lot/serial labels
     const lotIds = balances.map((b) => b.lotId).filter(Boolean);
     const serialIds = balances.map((b) => b.serialId).filter(Boolean);
-    const lots = lotIds.length
-      ? await prisma.lot.findMany({ where: { id: { in: lotIds } } })
-      : [];
+    const lots = lotIds.length ? await prisma.lot.findMany({ where: { id: { in: lotIds } } }) : [];
     const serials = serialIds.length
       ? await prisma.serial.findMany({ where: { id: { in: serialIds } } })
       : [];
@@ -32,8 +30,8 @@ export async function GET() {
 
     const rows = balances.map((b) => ({
       ...b,
-      lot: b.lotId ? lotMap.get(b.lotId) ?? null : null,
-      serial: b.serialId ? serialMap.get(b.serialId) ?? null : null,
+      lot: b.lotId ? (lotMap.get(b.lotId) ?? null) : null,
+      serial: b.serialId ? (serialMap.get(b.serialId) ?? null) : null,
       available: b.onHand - b.reserved - b.staged,
       ledger: b.staged > 0 ? "RAW_STAGED" : "RAW",
     }));
