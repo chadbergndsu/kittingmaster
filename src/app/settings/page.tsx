@@ -42,9 +42,14 @@ export default function SettingsPage() {
         title="ERP / MRP connectivity"
         subtitle="Market WMS kitting tools integrate outbound events into ERP and MRP. Configure a webhook endpoint to receive kit.sealed and kit.exception payloads."
         actions={
-          <a className="btn" href="/api/export/kits">
-            Export kits CSV
-          </a>
+          <>
+            <a className="btn" href="/api/export/kits">
+              Export kits CSV
+            </a>
+            <a className="btn" href="/api/export/ledger">
+              Export dual-entry ledger
+            </a>
+          </>
         }
       />
 
@@ -87,6 +92,13 @@ export default function SettingsPage() {
               GET /api/export/kits
             </a>{" "}
             — CSV of kit instances for ERP reconciliation.
+          </p>
+          <p>
+            <a className="link-accent" href="/api/export/ledger">
+              GET /api/export/ledger
+            </a>{" "}
+            — plain-text dual-entry journal (ledger-cli compatible). Stock moves as debit/credit —
+            customer-owned audit IP without SaaS lock-in.
           </p>
           <p>
             <span className="mono text-sky-200">GET /api/ops/metrics</span> — throughput KPIs JSON.
