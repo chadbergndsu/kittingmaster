@@ -63,16 +63,12 @@ export function renderLedgerJournal(
 
     switch (t.type) {
       case "RECEIPT":
-        lines.push(
-          `    ${account(["RAW", sku, t.toLocation || "INBOUND"])}    ${q} ${sku}`
-        );
+        lines.push(`    ${account(["RAW", sku, t.toLocation || "INBOUND"])}    ${q} ${sku}`);
         lines.push(`    Equity:Inventory                       -${q} ${sku}`);
         break;
       case "RESERVE":
         lines.push(`    ${account(["HOLD", t.kitCode || "KIT"])}    ${q} ${sku}`);
-        lines.push(
-          `    ${account(["RAW", sku, t.fromLocation || "BIN"])}    -${q} ${sku}`
-        );
+        lines.push(`    ${account(["RAW", sku, t.fromLocation || "BIN"])}    -${q} ${sku}`);
         break;
       case "UNRESERVE":
         lines.push(
@@ -105,9 +101,7 @@ export function renderLedgerJournal(
         break;
       case "ADJUST":
         if (t.qty >= 0) {
-          lines.push(
-            `    ${account(["RAW", sku, t.toLocation || "BIN"])}    ${q} ${sku}`
-          );
+          lines.push(`    ${account(["RAW", sku, t.toLocation || "BIN"])}    ${q} ${sku}`);
           lines.push(`    Equity:Adjust                       -${q} ${sku}`);
         } else {
           lines.push(`    Equity:Adjust                        ${q} ${sku}`);
@@ -117,12 +111,8 @@ export function renderLedgerJournal(
         }
         break;
       default:
-        lines.push(
-          `    ${account(["RAW", sku, t.toLocation || "MISC"])}    ${q} ${sku}`
-        );
-        lines.push(
-          `    ${account(["RAW", sku, t.fromLocation || "MISC"])}    -${q} ${sku}`
-        );
+        lines.push(`    ${account(["RAW", sku, t.toLocation || "MISC"])}    ${q} ${sku}`);
+        lines.push(`    ${account(["RAW", sku, t.fromLocation || "MISC"])}    -${q} ${sku}`);
     }
     lines.push("");
   }
